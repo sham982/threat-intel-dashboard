@@ -3,20 +3,32 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Threat Intelligence Dashboard API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: auth
+    description: Authentication operations
+  - name: users
+    description: User management (admin only)
+  - name: scans
+    description: Threat scan operations
+  - name: alerts
+    description: Alert management
+  - name: dashboard
+    description: Dashboard statistics
+  - name: resources
+    description: SOC resource references
+
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,6 +36,516 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  # Auth
+  /auth/login:
+    post:
+      operationId: login
+      tags: [auth]
+      summary: Login with username and password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginBody"
+      responses:
+        "200":
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "401":
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/me:
+    get:
+      operationId: getMe
+      tags: [auth]
+      summary: Get current authenticated user
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "401":
+          description: Unauthorized
+
+  /auth/logout:
+    post:
+      operationId: logout
+      tags: [auth]
+      summary: Logout current user
+      responses:
+        "200":
+          description: Logged out
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  # Users (admin)
+  /users:
+    get:
+      operationId: listUsers
+      tags: [users]
+      summary: List all users (admin only)
+      parameters:
+        - name: role
+          in: query
+          schema:
+            type: string
+            enum: [admin, analyst, viewer]
+        - name: isActive
+          in: query
+          schema:
+            type: boolean
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/User"
+    post:
+      operationId: createUser
+      tags: [users]
+      summary: Create a new user (admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateUserBody"
+      responses:
+        "201":
+          description: User created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+
+  /users/{id}:
+    get:
+      operationId: getUser
+      tags: [users]
+      summary: Get user by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: User details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+    patch:
+      operationId: updateUser
+      tags: [users]
+      summary: Update user (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateUserBody"
+      responses:
+        "200":
+          description: Updated user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+    delete:
+      operationId: deleteUser
+      tags: [users]
+      summary: Delete user (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: User deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  # Scans
+  /scans:
+    get:
+      operationId: listScans
+      tags: [scans]
+      summary: List threat scans
+      parameters:
+        - name: indicatorType
+          in: query
+          schema:
+            type: string
+            enum: [ip, url, domain, hash]
+        - name: riskLevel
+          in: query
+          schema:
+            type: string
+            enum: [high, medium, low, unknown]
+        - name: userId
+          in: query
+          schema:
+            type: integer
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        "200":
+          description: List of scans
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScansListResponse"
+    post:
+      operationId: createScan
+      tags: [scans]
+      summary: Submit a new threat scan
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateScanBody"
+      responses:
+        "201":
+          description: Scan created and results returned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Scan"
+
+  /scans/{id}:
+    get:
+      operationId: getScan
+      tags: [scans]
+      summary: Get scan by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Scan details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Scan"
+    delete:
+      operationId: deleteScan
+      tags: [scans]
+      summary: Delete a scan
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Scan deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  # Alerts
+  /alerts:
+    get:
+      operationId: listAlerts
+      tags: [alerts]
+      summary: List alerts
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [open, resolved]
+        - name: severity
+          in: query
+          schema:
+            type: string
+            enum: [critical, high, medium, low]
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        "200":
+          description: List of alerts
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AlertsListResponse"
+
+  /alerts/{id}:
+    get:
+      operationId: getAlert
+      tags: [alerts]
+      summary: Get alert by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Alert details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Alert"
+    patch:
+      operationId: updateAlert
+      tags: [alerts]
+      summary: Update alert status (resolve/reopen)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateAlertBody"
+      responses:
+        "200":
+          description: Updated alert
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Alert"
+
+  # Dashboard
+  /dashboard/stats:
+    get:
+      operationId: getDashboardStats
+      tags: [dashboard]
+      summary: Get dashboard overview statistics
+      responses:
+        "200":
+          description: Dashboard stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardStats"
+
+  /dashboard/activity:
+    get:
+      operationId: getRecentActivity
+      tags: [dashboard]
+      summary: Get recent scan activity feed
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+      responses:
+        "200":
+          description: Recent activity
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ActivityItem"
+
+  /dashboard/risk-breakdown:
+    get:
+      operationId: getRiskBreakdown
+      tags: [dashboard]
+      summary: Get scan counts grouped by risk level
+      responses:
+        "200":
+          description: Risk breakdown
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RiskBreakdown"
+
+  /dashboard/scan-trend:
+    get:
+      operationId: getScanTrend
+      tags: [dashboard]
+      summary: Get daily scan counts for the last 14 days
+      responses:
+        "200":
+          description: Scan trend data
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TrendPoint"
+
+  # Resources (SOC Cheatsheet)
+  /resources:
+    get:
+      operationId: listResources
+      tags: [resources]
+      summary: List SOC reference resources
+      parameters:
+        - name: category
+          in: query
+          schema:
+            type: string
+            enum: [ip_check, url_check, malware_check, cyber_threat_intelligence]
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of resources
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Resource"
+    post:
+      operationId: createResource
+      tags: [resources]
+      summary: Add a new SOC resource
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateResourceBody"
+      responses:
+        "201":
+          description: Resource created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Resource"
+
+  /resources/{id}:
+    patch:
+      operationId: updateResource
+      tags: [resources]
+      summary: Update a SOC resource
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateResourceBody"
+      responses:
+        "200":
+          description: Updated resource
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Resource"
+    delete:
+      operationId: deleteResource
+      tags: [resources]
+      summary: Delete a SOC resource
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Resource deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  /activity-logs:
+    get:
+      operationId: listActivityLogs
+      tags: [users]
+      summary: Get system activity logs (admin only)
+      parameters:
+        - name: userId
+          in: query
+          schema:
+            type: integer
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        "200":
+          description: Activity logs
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActivityLogsListResponse"
+
 components:
   schemas:
     HealthStatus:
@@ -31,6 +553,390 @@ components:
       properties:
         status:
           type: string
-      required:
-        - status
+      required: [status]
 
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+      required: [error]
+
+    MessageResponse:
+      type: object
+      properties:
+        message:
+          type: string
+      required: [message]
+
+    LoginBody:
+      type: object
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+      required: [username, password]
+
+    AuthResponse:
+      type: object
+      properties:
+        token:
+          type: string
+        user:
+          $ref: "#/components/schemas/User"
+      required: [token, user]
+
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+        username:
+          type: string
+        email:
+          type: string
+        fullName:
+          type: string
+        role:
+          type: string
+          enum: [admin, analyst, viewer]
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        lastLogin:
+          type: string
+          format: date-time
+          nullable: true
+      required: [id, username, email, role, isActive, createdAt]
+
+    CreateUserBody:
+      type: object
+      properties:
+        username:
+          type: string
+        email:
+          type: string
+          format: email
+        fullName:
+          type: string
+        password:
+          type: string
+          minLength: 8
+        role:
+          type: string
+          enum: [admin, analyst, viewer]
+      required: [username, email, password, role]
+
+    UpdateUserBody:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        fullName:
+          type: string
+        role:
+          type: string
+          enum: [admin, analyst, viewer]
+        isActive:
+          type: boolean
+        password:
+          type: string
+          minLength: 8
+
+    Scan:
+      type: object
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        username:
+          type: string
+        indicatorType:
+          type: string
+          enum: [ip, url, domain, hash]
+        indicatorValue:
+          type: string
+        riskScore:
+          type: number
+          minimum: 0
+          maximum: 100
+        riskLevel:
+          type: string
+          enum: [high, medium, low, unknown]
+        status:
+          type: string
+          enum: [pending, completed, failed]
+        sources:
+          type: array
+          items:
+            $ref: "#/components/schemas/ScanSource"
+        notes:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, userId, indicatorType, indicatorValue, riskScore, riskLevel, status, sources, createdAt]
+
+    ScanSource:
+      type: object
+      properties:
+        name:
+          type: string
+        status:
+          type: string
+          enum: [clean, malicious, suspicious, unknown, error]
+        detections:
+          type: integer
+          nullable: true
+        totalEngines:
+          type: integer
+          nullable: true
+        details:
+          type: string
+          nullable: true
+        url:
+          type: string
+          nullable: true
+      required: [name, status]
+
+    CreateScanBody:
+      type: object
+      properties:
+        indicatorType:
+          type: string
+          enum: [ip, url, domain, hash]
+        indicatorValue:
+          type: string
+        notes:
+          type: string
+      required: [indicatorType, indicatorValue]
+
+    ScansListResponse:
+      type: object
+      properties:
+        scans:
+          type: array
+          items:
+            $ref: "#/components/schemas/Scan"
+        total:
+          type: integer
+      required: [scans, total]
+
+    Alert:
+      type: object
+      properties:
+        id:
+          type: integer
+        scanId:
+          type: integer
+        indicatorValue:
+          type: string
+        indicatorType:
+          type: string
+          enum: [ip, url, domain, hash]
+        severity:
+          type: string
+          enum: [critical, high, medium, low]
+        message:
+          type: string
+        status:
+          type: string
+          enum: [open, resolved]
+        riskScore:
+          type: number
+        resolvedBy:
+          type: string
+          nullable: true
+        resolvedAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, scanId, indicatorValue, indicatorType, severity, message, status, riskScore, createdAt]
+
+    UpdateAlertBody:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [open, resolved]
+        notes:
+          type: string
+      required: [status]
+
+    AlertsListResponse:
+      type: object
+      properties:
+        alerts:
+          type: array
+          items:
+            $ref: "#/components/schemas/Alert"
+        total:
+          type: integer
+      required: [alerts, total]
+
+    DashboardStats:
+      type: object
+      properties:
+        totalScans:
+          type: integer
+        highRiskDetections:
+          type: integer
+        openAlerts:
+          type: integer
+        activeUsers:
+          type: integer
+        scansToday:
+          type: integer
+        resolvedAlerts:
+          type: integer
+        avgRiskScore:
+          type: number
+        systemHealth:
+          type: string
+          enum: [healthy, degraded, down]
+      required: [totalScans, highRiskDetections, openAlerts, activeUsers, scansToday, resolvedAlerts, avgRiskScore, systemHealth]
+
+    ActivityItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        type:
+          type: string
+          enum: [scan, alert, user_action]
+        description:
+          type: string
+        username:
+          type: string
+        riskLevel:
+          type: string
+          enum: [high, medium, low, unknown]
+          nullable: true
+        indicatorType:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, type, description, username, createdAt]
+
+    RiskBreakdown:
+      type: object
+      properties:
+        high:
+          type: integer
+        medium:
+          type: integer
+        low:
+          type: integer
+        unknown:
+          type: integer
+      required: [high, medium, low, unknown]
+
+    TrendPoint:
+      type: object
+      properties:
+        date:
+          type: string
+        total:
+          type: integer
+        high:
+          type: integer
+        medium:
+          type: integer
+        low:
+          type: integer
+      required: [date, total, high, medium, low]
+
+    Resource:
+      type: object
+      properties:
+        id:
+          type: integer
+        category:
+          type: string
+          enum: [ip_check, url_check, malware_check, cyber_threat_intelligence]
+        name:
+          type: string
+        url:
+          type: string
+        description:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, category, name, url, createdAt]
+
+    CreateResourceBody:
+      type: object
+      properties:
+        category:
+          type: string
+          enum: [ip_check, url_check, malware_check, cyber_threat_intelligence]
+        name:
+          type: string
+        url:
+          type: string
+        description:
+          type: string
+      required: [category, name, url]
+
+    UpdateResourceBody:
+      type: object
+      properties:
+        category:
+          type: string
+          enum: [ip_check, url_check, malware_check, cyber_threat_intelligence]
+        name:
+          type: string
+        url:
+          type: string
+        description:
+          type: string
+
+    ActivityLog:
+      type: object
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+          nullable: true
+        username:
+          type: string
+          nullable: true
+        action:
+          type: string
+        details:
+          type: string
+          nullable: true
+        ipAddress:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, action, createdAt]
+
+    ActivityLogsListResponse:
+      type: object
+      properties:
+        logs:
+          type: array
+          items:
+            $ref: "#/components/schemas/ActivityLog"
+        total:
+          type: integer
+      required: [logs, total]

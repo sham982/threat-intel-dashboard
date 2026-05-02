@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "Threat Intelligence Dashboard"
+version = "1.0.0"
+id = "artifacts/threat-dashboard"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 24307
+
+[services.development]
+run = "pnpm --filter @workspace/threat-dashboard run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/threat-dashboard", "run", "build" ]
+publicDir = "artifacts/threat-dashboard/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "24307"
+BASE_PATH = "/"
