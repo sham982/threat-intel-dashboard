@@ -1,6 +1,6 @@
 import { useGetDashboardStats, useGetScanTrend, useGetRiskBreakdown, useGetRecentActivity } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Shield, ShieldAlert, Activity, Users, AlertTriangle } from "lucide-react";
+import { Shield, ShieldAlert, Activity, Users, AlertTriangle, Search } from "lucide-react";
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid, PieChart, Pie, Cell, Legend } from "recharts";
 import { format } from "date-fns";
 
