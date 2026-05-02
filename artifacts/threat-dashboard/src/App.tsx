@@ -7,6 +7,7 @@ import { Layout } from "@/components/layout";
 
 import NotFound from "@/pages/not-found";
 import Login from "@/pages/login";
+import Register from "@/pages/register";
 import Dashboard from "@/pages/dashboard";
 import Lookup from "@/pages/lookup";
 import Scans from "@/pages/scans";
@@ -14,24 +15,23 @@ import Alerts from "@/pages/alerts";
 import Resources from "@/pages/resources";
 import Users from "@/pages/users";
 import Logs from "@/pages/logs";
+import Settings from "@/pages/settings";
 
-const queryClient = new QueryClient();
-
-// Placeholder components for pages we haven't built yet
-function Placeholder({ title }: { title: string }) {
-  return (
-    <div className="flex flex-col items-center justify-center h-full p-12 text-center border border-dashed border-border rounded-lg bg-card/30">
-      <h2 className="text-xl font-bold tracking-tight uppercase text-muted-foreground">{title}</h2>
-      <p className="mt-2 text-sm text-muted-foreground font-mono">Module under construction</p>
-    </div>
-  );
-}
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      staleTime: 30_000,
+    },
+  },
+});
 
 function Router() {
   return (
     <Switch>
       <Route path="/login" component={Login} />
-      
+      <Route path="/register" component={Register} />
+
       <Route path="/dashboard">
         {() => <ProtectedRoute component={() => <Layout><Dashboard /></Layout>} />}
       </Route>
@@ -47,17 +47,20 @@ function Router() {
       <Route path="/resources">
         {() => <ProtectedRoute component={() => <Layout><Resources /></Layout>} />}
       </Route>
+      <Route path="/settings">
+        {() => <ProtectedRoute component={() => <Layout><Settings /></Layout>} />}
+      </Route>
       <Route path="/admin/users">
         {() => <ProtectedRoute adminOnly component={() => <Layout><Users /></Layout>} />}
       </Route>
       <Route path="/admin/logs">
         {() => <ProtectedRoute adminOnly component={() => <Layout><Logs /></Layout>} />}
       </Route>
-      
+
       <Route path="/">
         {() => <ProtectedRoute component={() => <Layout><Dashboard /></Layout>} />}
       </Route>
-      
+
       <Route>
         {() => <ProtectedRoute component={() => <Layout><NotFound /></Layout>} />}
       </Route>

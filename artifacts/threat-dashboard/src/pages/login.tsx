@@ -143,9 +143,15 @@ export default function Login() {
           </form>
         </Form>
 
-        <div className="mt-8 text-center border-t border-border/50 pt-6">
+        <div className="mt-8 text-center border-t border-border/50 pt-6 space-y-3">
           <p className="text-[10px] text-muted-foreground font-mono uppercase tracking-widest">
             Restricted System. Authorized personnel only.
+          </p>
+          <p className="text-xs text-muted-foreground font-mono">
+            New operator?{" "}
+            <a href="/register" className="text-primary hover:underline underline-offset-4 transition-colors">
+              Request clearance
+            </a>
           </p>
         </div>
       </div>
