@@ -1,22 +1,15 @@
-import { pgTable, text, serial, timestamp, integer, pgEnum } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, timestamp, integer } from "drizzle-orm/pg-core";
 import { usersTable } from "./users";
-
-export const apiPlatformEnum = pgEnum("api_platform", [
-  "virustotal",
-  "abuseipdb",
-  "alienvault_otx",
-  "shodan",
-  "censys",
-]);
 
 export const userApiKeysTable = pgTable("user_api_keys", {
   id: serial("id").primaryKey(),
   userId: integer("user_id")
     .notNull()
     .references(() => usersTable.id, { onDelete: "cascade" }),
-  platform: apiPlatformEnum("platform").notNull(),
+  platform: text("platform").notNull(),
   apiKey: text("api_key").notNull(),
   label: text("label"),
+  priority: integer("priority").notNull().default(0),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
