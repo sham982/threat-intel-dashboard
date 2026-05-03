@@ -6,23 +6,23 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
   Eye, EyeOff, Key, CheckCircle2, Trash2, Save, ExternalLink,
-  Plus, ChevronUp, ChevronDown, AlertCircle, Settings2
+  Plus, ChevronUp, ChevronDown, AlertCircle, Settings2,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { getAuthHeaders } from "@/lib/api-client";
 
-// ── Known platform catalogue ──────────────────────────────────────────────────
+// ── Full catalogue from SOC Resources + API-capable platforms ─────────────────
 const KNOWN_PLATFORMS: Record<string, {
   name: string; description: string; docsUrl: string; color: string; category: string;
 }> = {
   virustotal: {
-    name: "VirusTotal", color: "text-blue-400", category: "Malware & File Analysis",
-    description: "Analyze files, IPs, domains and URLs for malware. Industry standard.",
+    name: "VirusTotal", color: "text-blue-400", category: "Multi-Engine Scanner",
+    description: "Analyze files, IPs, domains and URLs against 80+ AV engines.",
     docsUrl: "https://www.virustotal.com/gui/my-apikey",
   },
   abuseipdb: {
     name: "AbuseIPDB", color: "text-orange-400", category: "IP Reputation",
-    description: "IP reputation and abuse reporting database.",
+    description: "IP reputation and abuse reporting database — 90-day lookback.",
     docsUrl: "https://www.abuseipdb.com/account/api",
   },
   alienvault_otx: {
@@ -40,44 +40,138 @@ const KNOWN_PLATFORMS: Record<string, {
     description: "Internet-wide scan data and certificate transparency logs.",
     docsUrl: "https://search.censys.io/account",
   },
+  cisco_talos: {
+    name: "Cisco Talos", color: "text-red-400", category: "IP/Domain Reputation",
+    description: "Industry-leading IP and domain reputation intelligence from Cisco.",
+    docsUrl: "https://talosintelligence.com/",
+  },
   greynoise: {
-    name: "GreyNoise", color: "text-cyan-400", category: "IP Reputation",
-    description: "Distinguish targeted attacks from internet background noise.",
+    name: "GreyNoise", color: "text-cyan-400", category: "Internet Noise Analysis",
+    description: "Classify IPs scanning the internet — separates signal from noise.",
     docsUrl: "https://viz.greynoise.io/account/",
-  },
-  urlscan: {
-    name: "URLScan.io", color: "text-pink-400", category: "URL Analysis",
-    description: "Sandbox-style URL scanner with screenshot and DOM analysis.",
-    docsUrl: "https://urlscan.io/user/profile/",
-  },
-  hybrid_analysis: {
-    name: "Hybrid Analysis", color: "text-red-400", category: "Malware & File Analysis",
-    description: "Free malware analysis service powered by Falcon Sandbox.",
-    docsUrl: "https://www.hybrid-analysis.com/my-account?tab=%23api-key-tab",
-  },
-  threatfox: {
-    name: "ThreatFox", color: "text-amber-400", category: "Threat Intelligence",
-    description: "IOC sharing platform by abuse.ch — malware, C2 indicators.",
-    docsUrl: "https://threatfox.abuse.ch/api/",
-  },
-  securitytrails: {
-    name: "SecurityTrails", color: "text-indigo-400", category: "DNS & WHOIS",
-    description: "Historical DNS, WHOIS, and IP data for investigations.",
-    docsUrl: "https://securitytrails.com/app/account/credentials",
   },
   pulsedive: {
     name: "Pulsedive", color: "text-teal-400", category: "Threat Intelligence",
-    description: "Community threat intelligence enrichment platform.",
+    description: "Community threat enrichment — IPs, domains, URLs and hashes.",
     docsUrl: "https://pulsedive.com/account/",
   },
+  threatfox: {
+    name: "ThreatFox", color: "text-amber-400", category: "IOC Database",
+    description: "abuse.ch IOC sharing platform — malware, C2 indicators.",
+    docsUrl: "https://threatfox.abuse.ch/api/",
+  },
+  ipqualityscore: {
+    name: "IP Quality Score", color: "text-rose-400", category: "IP/URL Reputation",
+    description: "Fraud, proxy, VPN and bot detection for IPs, URLs and email.",
+    docsUrl: "https://www.ipqualityscore.com/user/settings",
+  },
+  threatminer: {
+    name: "ThreatMiner", color: "text-zinc-400", category: "Threat Intelligence",
+    description: "Passive DNS, WHOIS and malware sample threat intelligence.",
+    docsUrl: "https://www.threatminer.org/",
+  },
+  inquest_labs: {
+    name: "InQuest Labs", color: "text-indigo-400", category: "Deep File Inspection",
+    description: "Deep file inspection and IOC/IDB repositories.",
+    docsUrl: "https://labs.inquest.net/",
+  },
+  urlscan: {
+    name: "URLScan.io", color: "text-pink-400", category: "URL Scanner",
+    description: "Sandbox-style URL scanner with screenshot and DOM analysis.",
+    docsUrl: "https://urlscan.io/user/profile/",
+  },
+  urlhaus: {
+    name: "URLHaus", color: "text-lime-400", category: "Malware URL Feed",
+    description: "abuse.ch malware distribution URL database and live feed.",
+    docsUrl: "https://urlhaus-api.abuse.ch/",
+  },
+  malwareurl: {
+    name: "MalwareURL", color: "text-red-300", category: "URL Blacklist",
+    description: "Real-time list of live malicious and phishing URLs.",
+    docsUrl: "https://www.malwareurl.com/",
+  },
+  securitytrails: {
+    name: "SecurityTrails", color: "text-sky-400", category: "DNS & WHOIS",
+    description: "Historical DNS, WHOIS, IP and subdomain intelligence.",
+    docsUrl: "https://securitytrails.com/app/account/credentials",
+  },
   ipinfo: {
-    name: "IPInfo", color: "text-lime-400", category: "IP Reputation",
-    description: "Accurate IP geolocation, ASN, and carrier data.",
+    name: "IPInfo", color: "text-emerald-400", category: "IP Geolocation",
+    description: "Accurate IP geolocation, ASN, carrier and abuse data.",
     docsUrl: "https://ipinfo.io/account/home",
+  },
+  hybrid_analysis: {
+    name: "Hybrid Analysis", color: "text-fuchsia-400", category: "Malware Sandbox",
+    description: "Free malware analysis powered by Falcon Sandbox — Threat Score.",
+    docsUrl: "https://www.hybrid-analysis.com/my-account?tab=%23api-key-tab",
+  },
+  malware_bazaar: {
+    name: "Malware Bazaar", color: "text-orange-300", category: "Malware Sample DB",
+    description: "abuse.ch malware sample sharing — hash and family lookup.",
+    docsUrl: "https://bazaar.abuse.ch/api/",
+  },
+  any_run: {
+    name: "Any.run", color: "text-violet-400", category: "Interactive Sandbox",
+    description: "Interactive malware sandbox with live task analysis.",
+    docsUrl: "https://any.run/",
+  },
+  intezer: {
+    name: "Intezer", color: "text-blue-300", category: "Malware Genome",
+    description: "Code DNA analysis — detect malware reuse and gene classification.",
+    docsUrl: "https://analyze.intezer.com/",
+  },
+  ibm_xforce: {
+    name: "IBM X-Force", color: "text-slate-400", category: "Threat Intelligence",
+    description: "IBM threat intelligence exchange — IPs, URLs, malware, CVEs.",
+    docsUrl: "https://exchange.xforce.ibmcloud.com/",
+  },
+  ioc_one: {
+    name: "IOC.One", color: "text-yellow-300", category: "IOC Search",
+    description: "Search engine for indicators of compromise across multiple feeds.",
+    docsUrl: "https://ioc.one/",
+  },
+  sucuri: {
+    name: "Sucuri SiteCheck", color: "text-green-300", category: "Web Security",
+    description: "Remote website malware scanner and blocklist checker.",
+    docsUrl: "https://sucuri.net/website-security-platform/",
+  },
+  joe_sandbox: {
+    name: "Joe Sandbox", color: "text-amber-300", category: "Malware Sandbox",
+    description: "Deep malware analysis with Windows/macOS/Android support.",
+    docsUrl: "https://www.joesandbox.com/#windows",
+  },
+  misp: {
+    name: "MISP", color: "text-red-300", category: "Threat Sharing Platform",
+    description: "Open source threat intelligence and sharing platform.",
+    docsUrl: "https://www.misp-project.org/",
+  },
+  opencti: {
+    name: "OpenCTI", color: "text-blue-500", category: "Threat Sharing Platform",
+    description: "Open cyber threat intelligence platform for structured sharing.",
+    docsUrl: "https://www.opencti.io/",
+  },
+  mandiant: {
+    name: "Mandiant", color: "text-red-500", category: "Threat Intelligence",
+    description: "Enterprise threat intelligence — actors, malware, indicators.",
+    docsUrl: "https://www.mandiant.com/advantage/threat-intelligence/free-version",
+  },
+  crowdstrike: {
+    name: "CrowdStrike", color: "text-orange-500", category: "Threat Intelligence",
+    description: "Falcon Intelligence — adversary profiles and IOC feeds.",
+    docsUrl: "https://www.crowdstrike.com/adversaries/",
+  },
+  malpedia: {
+    name: "Malpedia", color: "text-purple-300", category: "Malware Library",
+    description: "Structured malware reference library by Fraunhofer FKIE.",
+    docsUrl: "https://malpedia.caad.fkie.fraunhofer.de/",
+  },
+  intelx: {
+    name: "IntelX", color: "text-cyan-300", category: "OSINT Search",
+    description: "Search Tor, I2P, data leaks, paste sites and public web.",
+    docsUrl: "https://intelx.io/tools?tab=general",
   },
 };
 
-// ── Types ─────────────────────────────────────────────────────────────────────
 type SavedKey = {
   id: number;
   platform: string;
@@ -88,74 +182,42 @@ type SavedKey = {
   _visible?: boolean;
 };
 
-type AddFormState = {
-  apiKey: string;
-  label: string;
-  saving: boolean;
-};
+type AddFormState = { apiKey: string; label: string; saving: boolean };
 
 function normalizePlatform(s: string) {
-  return s.trim().toLowerCase().replace(/\s+/g, "_");
+  return s.trim().toLowerCase().replace(/[\s\-]+/g, "_").replace(/[^a-z0-9_]/g, "");
 }
 
-// ── Single key row ────────────────────────────────────────────────────────────
-function KeyRow({
-  k, total, onDelete, onMove, onToggleVisible,
-}: {
+// ── Key row ───────────────────────────────────────────────────────────────────
+function KeyRow({ k, total, onDelete, onMove, onToggle }: {
   k: SavedKey; total: number;
   onDelete: (id: number) => void;
   onMove: (id: number, dir: "up" | "down") => void;
-  onToggleVisible: (id: number) => void;
+  onToggle: (id: number) => void;
 }) {
   return (
     <div className="flex items-center gap-2 px-3 py-2 bg-background/60 rounded border border-border/40 group">
-      <Badge
-        variant="outline"
-        className="shrink-0 font-mono text-[9px] uppercase border-border/50 text-muted-foreground min-w-[44px] justify-center"
-      >
+      <Badge variant="outline" className="shrink-0 font-mono text-[9px] uppercase border-border/50 text-muted-foreground min-w-[42px] justify-center">
         #{k.priority + 1}
       </Badge>
-
       <Key className="w-3 h-3 text-muted-foreground shrink-0" />
       <span className="font-mono text-xs text-muted-foreground flex-1 truncate">
-        {k._visible ? k.apiKey.replace(/•+/, "[hidden]") : k.apiKey}
+        {k._visible ? k.apiKey : k.apiKey}
       </span>
-
       {k.label && (
-        <span className="font-mono text-[10px] text-muted-foreground/60 truncate max-w-[90px] hidden sm:block">
-          {k.label}
-        </span>
+        <span className="font-mono text-[10px] text-muted-foreground/60 truncate max-w-[80px] hidden sm:block">{k.label}</span>
       )}
-
-      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-        <button
-          onClick={() => onToggleVisible(k.id)}
-          className="text-muted-foreground hover:text-foreground transition-colors p-0.5"
-          title={k._visible ? "Hide key" : "Reveal key"}
-        >
+      <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+        <button onClick={() => onToggle(k.id)} className="text-muted-foreground hover:text-foreground transition-colors p-0.5" title="Reveal/hide">
           {k._visible ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
         </button>
-        <button
-          onClick={() => onMove(k.id, "up")}
-          disabled={k.priority === 0}
-          className="text-muted-foreground hover:text-foreground disabled:opacity-30 transition-colors p-0.5"
-          title="Higher priority"
-        >
+        <button onClick={() => onMove(k.id, "up")} disabled={k.priority === 0} className="text-muted-foreground hover:text-foreground disabled:opacity-25 transition-colors p-0.5">
           <ChevronUp className="w-3 h-3" />
         </button>
-        <button
-          onClick={() => onMove(k.id, "down")}
-          disabled={k.priority === total - 1}
-          className="text-muted-foreground hover:text-foreground disabled:opacity-30 transition-colors p-0.5"
-          title="Lower priority"
-        >
+        <button onClick={() => onMove(k.id, "down")} disabled={k.priority === total - 1} className="text-muted-foreground hover:text-foreground disabled:opacity-25 transition-colors p-0.5">
           <ChevronDown className="w-3 h-3" />
         </button>
-        <button
-          onClick={() => onDelete(k.id)}
-          className="text-muted-foreground hover:text-destructive transition-colors p-0.5"
-          title="Remove key"
-        >
+        <button onClick={() => onDelete(k.id)} className="text-muted-foreground hover:text-destructive transition-colors p-0.5">
           <Trash2 className="w-3 h-3" />
         </button>
       </div>
@@ -164,15 +226,12 @@ function KeyRow({
 }
 
 // ── Platform card ─────────────────────────────────────────────────────────────
-function PlatformCard({
-  platformId, keys, onDelete, onMove, onAdd, onToggleVisible,
-}: {
-  platformId: string;
-  keys: SavedKey[];
+function PlatformCard({ platformId, keys, onDelete, onMove, onAdd, onToggle }: {
+  platformId: string; keys: SavedKey[];
   onDelete: (id: number) => void;
   onMove: (id: number, dir: "up" | "down") => void;
   onAdd: (platformId: string, apiKey: string, label: string) => Promise<void>;
-  onToggleVisible: (id: number) => void;
+  onToggle: (id: number) => void;
 }) {
   const meta = KNOWN_PLATFORMS[platformId];
   const [form, setForm] = useState<AddFormState>({ apiKey: "", label: "", saving: false });
@@ -186,18 +245,20 @@ function PlatformCard({
     setShowForm(false);
   };
 
+  const displayName = meta?.name ?? platformId.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+
   return (
     <Card className={`bg-card/50 border-border/50 transition-all ${keys.length > 0 ? "border-success/20" : ""}`}>
       <CardHeader className="pb-2">
         <div className="flex items-start justify-between gap-2">
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex flex-wrap items-center gap-2">
             <CardTitle className={`text-sm font-mono uppercase tracking-wide ${meta?.color ?? "text-foreground"}`}>
-              {meta?.name ?? platformId.replace(/_/g, " ")}
+              {displayName}
             </CardTitle>
             {keys.length > 0 && (
-              <Badge variant="outline" className="bg-success/10 text-success border-success/30 text-[10px] font-mono uppercase">
+              <Badge variant="outline" className="bg-success/10 text-success border-success/30 text-[10px] font-mono">
                 <CheckCircle2 className="w-3 h-3 mr-1" />
-                {keys.length} key{keys.length > 1 ? "s" : ""}
+                {keys.length} key{keys.length !== 1 ? "s" : ""}
               </Badge>
             )}
             {meta?.category && (
@@ -206,95 +267,58 @@ function PlatformCard({
               </Badge>
             )}
           </div>
-          <div className="flex items-center gap-2 shrink-0">
-            {meta?.docsUrl && (
-              <a
-                href={meta.docsUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-[11px] text-muted-foreground hover:text-primary flex items-center gap-1 font-mono transition-colors"
-              >
-                Get Key <ExternalLink className="w-3 h-3" />
-              </a>
-            )}
-          </div>
+          {meta?.docsUrl && (
+            <a href={meta.docsUrl} target="_blank" rel="noopener noreferrer"
+              className="text-[11px] text-muted-foreground hover:text-primary flex items-center gap-1 font-mono transition-colors shrink-0">
+              Get Key <ExternalLink className="w-3 h-3" />
+            </a>
+          )}
         </div>
         {meta?.description && (
-          <CardDescription className="text-xs font-mono text-muted-foreground">
-            {meta.description}
-          </CardDescription>
+          <CardDescription className="text-xs font-mono text-muted-foreground">{meta.description}</CardDescription>
         )}
       </CardHeader>
-
       <CardContent className="pt-0 space-y-2">
-        {/* Existing keys */}
         {keys.map(k => (
-          <KeyRow
-            key={k.id}
-            k={k}
-            total={keys.length}
-            onDelete={onDelete}
-            onMove={onMove}
-            onToggleVisible={onToggleVisible}
-          />
+          <KeyRow key={k.id} k={k} total={keys.length} onDelete={onDelete} onMove={onMove} onToggle={onToggle} />
         ))}
-
-        {/* Priority hint */}
         {keys.length > 1 && (
           <p className="text-[10px] font-mono text-muted-foreground/60 flex items-center gap-1">
             <AlertCircle className="w-3 h-3" />
-            Keys are tried in order. #1 is used first; fallback to #2 when rate-limited.
+            Keys tried in priority order — fallback to next when rate-limited.
           </p>
         )}
-
-        {/* Add key form */}
         {showForm ? (
-          <div className="space-y-2 pt-1 border-t border-border/30">
-            <div className="flex gap-2">
-              <Input
-                type="password"
-                placeholder="Paste API key..."
-                value={form.apiKey}
-                onChange={e => setForm(f => ({ ...f, apiKey: e.target.value }))}
-                className="font-mono bg-background/50 border-border/50 text-xs flex-1"
-                onKeyDown={e => e.key === "Enter" && handleAdd()}
-              />
-              <Input
-                type="text"
-                placeholder="Label (optional)"
-                value={form.label}
-                onChange={e => setForm(f => ({ ...f, label: e.target.value }))}
-                className="font-mono bg-background/50 border-border/50 text-xs w-32 hidden sm:block"
-                onKeyDown={e => e.key === "Enter" && handleAdd()}
-              />
-              <Button
-                size="sm"
-                onClick={handleAdd}
-                disabled={form.saving || !form.apiKey.trim()}
-                className="font-mono text-xs uppercase shrink-0"
-              >
-                <Save className="w-3 h-3 mr-1" />
-                {form.saving ? "Saving..." : "Save"}
+          <div className="flex gap-2 pt-1 border-t border-border/30">
+            <Input
+              type="password"
+              placeholder="Paste API key..."
+              value={form.apiKey}
+              onChange={e => setForm(f => ({ ...f, apiKey: e.target.value }))}
+              className="font-mono bg-background/50 border-border/50 text-xs flex-1"
+              onKeyDown={e => e.key === "Enter" && handleAdd()}
+            />
+            <Input
+              type="text"
+              placeholder="Label (optional)"
+              value={form.label}
+              onChange={e => setForm(f => ({ ...f, label: e.target.value }))}
+              className="font-mono bg-background/50 border-border/50 text-xs w-28 hidden sm:block"
+              onKeyDown={e => e.key === "Enter" && handleAdd()}
+            />
+            <Button size="sm" onClick={handleAdd} disabled={form.saving || !form.apiKey.trim()} className="font-mono text-xs uppercase shrink-0">
+              <Save className="w-3 h-3 mr-1" />
+              {form.saving ? "Saving..." : "Save"}
+            </Button>
+            {keys.length > 0 && (
+              <Button size="sm" variant="ghost" onClick={() => setShowForm(false)} className="shrink-0 text-muted-foreground">
+                Cancel
               </Button>
-              {keys.length > 0 && (
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => setShowForm(false)}
-                  className="shrink-0 text-muted-foreground"
-                >
-                  Cancel
-                </Button>
-              )}
-            </div>
+            )}
           </div>
         ) : (
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => setShowForm(true)}
-            className="w-full font-mono text-xs text-muted-foreground border-dashed border-border/50 hover:border-primary/50 hover:text-primary"
-          >
+          <Button size="sm" variant="outline" onClick={() => setShowForm(true)}
+            className="w-full font-mono text-xs text-muted-foreground border-dashed border-border/50 hover:border-primary/50 hover:text-primary">
             <Plus className="w-3 h-3 mr-1" /> Add Key
           </Button>
         )}
@@ -308,28 +332,26 @@ export default function Settings() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [savedKeys, setSavedKeys] = useState<SavedKey[]>([]);
-  const [customPlatformName, setCustomPlatformName] = useState("");
-  const [addingCustom, setAddingCustom] = useState(false);
+  const [customForm, setCustomForm] = useState({ platform: "", apiKey: "", label: "", saving: false, open: false });
 
   const fetchKeys = useCallback(async () => {
     try {
       const res = await fetch("/api/user/api-keys", { headers: getAuthHeaders() });
       if (!res.ok) return;
-      const data: SavedKey[] = await res.json();
-      setSavedKeys(data);
+      setSavedKeys(await res.json());
     } catch {}
   }, []);
 
   useEffect(() => { fetchKeys(); }, [fetchKeys]);
 
-  // All active platform IDs: union of known platforms + any custom ones already saved
-  const activePlatformIds = Array.from(new Set([
+  // All platform IDs = known + any custom saved ones
+  const allPlatformIds = Array.from(new Set([
     ...Object.keys(KNOWN_PLATFORMS),
     ...savedKeys.map(k => k.platform),
   ]));
 
-  const keysByPlatform = (platformId: string) =>
-    savedKeys.filter(k => k.platform === platformId).sort((a, b) => a.priority - b.priority);
+  const keysByPlatform = (id: string) =>
+    savedKeys.filter(k => k.platform === id).sort((a, b) => a.priority - b.priority);
 
   const handleAdd = async (platformId: string, apiKey: string, label: string) => {
     try {
@@ -339,7 +361,7 @@ export default function Settings() {
         body: JSON.stringify({ platform: platformId, apiKey, label }),
       });
       if (!res.ok) throw new Error("Failed");
-      toast({ title: "Key added", description: `Key saved for ${KNOWN_PLATFORMS[platformId]?.name ?? platformId}` });
+      toast({ title: "Key added", description: `Saved for ${KNOWN_PLATFORMS[platformId]?.name ?? platformId}` });
       await fetchKeys();
     } catch {
       toast({ title: "Failed to save key", variant: "destructive" });
@@ -371,132 +393,136 @@ export default function Settings() {
     }
   };
 
-  const handleToggleVisible = (id: number) => {
-    setSavedKeys(keys =>
-      keys.map(k => k.id === id ? { ...k, _visible: !k._visible } : k)
-    );
+  const handleToggle = (id: number) => {
+    setSavedKeys(keys => keys.map(k => k.id === id ? { ...k, _visible: !k._visible } : k));
   };
 
-  const handleAddCustomPlatform = () => {
-    const norm = normalizePlatform(customPlatformName);
-    if (!norm) return;
-    if (activePlatformIds.includes(norm)) {
-      toast({ title: "Platform already exists", variant: "destructive" });
-      return;
+  // Custom platform: saves platform + first key together to DB immediately
+  const handleAddCustom = async () => {
+    const norm = normalizePlatform(customForm.platform);
+    if (!norm || !customForm.apiKey.trim()) return;
+    setCustomForm(f => ({ ...f, saving: true }));
+    try {
+      const res = await fetch("/api/user/api-keys", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+        body: JSON.stringify({
+          platform: norm,
+          apiKey: customForm.apiKey.trim(),
+          label: customForm.label.trim() || `${customForm.platform} Key 1`,
+        }),
+      });
+      if (!res.ok) throw new Error("Failed");
+      toast({ title: "Custom platform added", description: `${customForm.platform} saved to your API keys` });
+      setCustomForm({ platform: "", apiKey: "", label: "", saving: false, open: false });
+      await fetchKeys();
+    } catch {
+      toast({ title: "Failed to add custom platform", variant: "destructive" });
+      setCustomForm(f => ({ ...f, saving: false }));
     }
-    // Optimistically show the new platform card (it has no keys yet, so add-form opens by default)
-    setSavedKeys(k => k); // trigger re-render — the platform card will appear because we track all active IDs
-    setCustomPlatformName("");
-    setAddingCustom(false);
-    // We create a temporary entry to force the platform to appear in activePlatformIds
-    setSavedKeys(prev => [
-      ...prev,
-      // sentinel — will be removed after real add
-    ]);
-    // Actually just store the name to force the card to appear
-    setForcedPlatforms(fp => [...fp, norm]);
   };
-
-  const [forcedPlatforms, setForcedPlatforms] = useState<string[]>([]);
-
-  const allPlatformIds = Array.from(new Set([
-    ...Object.keys(KNOWN_PLATFORMS),
-    ...savedKeys.map(k => k.platform),
-    ...forcedPlatforms,
-  ]));
-
-  const totalConfigured = savedKeys.length;
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-3xl">
-      {/* Header */}
       <div className="flex flex-col gap-1">
         <h1 className="text-2xl font-bold tracking-tight uppercase">API Keys</h1>
         <p className="text-sm text-muted-foreground font-mono tracking-widest">
           OPERATOR: <span className="text-primary">{user?.username?.toUpperCase()}</span>
           {" — "}
-          <span className="text-success">{totalConfigured}</span> KEY{totalConfigured !== 1 ? "S" : ""} CONFIGURED
+          <span className="text-success">{savedKeys.length}</span> KEY{savedKeys.length !== 1 ? "S" : ""} CONFIGURED
         </p>
       </div>
 
-      {/* Info banner */}
       <Card className="bg-card/50 border-border/50">
         <CardContent className="p-4 flex items-start gap-3">
           <Key className="w-4 h-4 text-primary mt-0.5 shrink-0" />
           <div className="space-y-1">
             <p className="text-sm font-medium">Per-platform key rotation</p>
             <p className="text-xs text-muted-foreground font-mono leading-relaxed">
-              Add multiple keys per platform. Keys are tried in priority order — if Key #1 hits its rate limit the system automatically falls back to Key #2, and so on. Use the arrows to adjust priority order. Keys are stored securely and only accessible to your account.
+              Add multiple keys per platform. Keys are tried in priority order — if Key #1 hits its rate limit the system automatically
+              falls back to Key #2. All keys are stored encrypted, accessible only to your account.
             </p>
           </div>
         </CardContent>
       </Card>
 
-      {/* Platform cards */}
-      <div className="space-y-4">
-        {allPlatformIds.map(platformId => (
+      <div className="space-y-3">
+        {allPlatformIds.map(id => (
           <PlatformCard
-            key={platformId}
-            platformId={platformId}
-            keys={keysByPlatform(platformId)}
+            key={id}
+            platformId={id}
+            keys={keysByPlatform(id)}
             onDelete={handleDelete}
             onMove={handleMove}
             onAdd={handleAdd}
-            onToggleVisible={handleToggleVisible}
+            onToggle={handleToggle}
           />
         ))}
       </div>
 
-      {/* Add custom platform */}
+      {/* Custom platform — saves to DB on first key entry */}
       <Card className="bg-card/30 border-dashed border-border/40">
         <CardHeader className="pb-2">
           <div className="flex items-center gap-2">
             <Settings2 className="w-4 h-4 text-muted-foreground" />
-            <CardTitle className="text-sm font-mono uppercase tracking-wide text-muted-foreground">
-              Custom Platform
-            </CardTitle>
+            <CardTitle className="text-sm font-mono uppercase tracking-wide text-muted-foreground">Custom Platform</CardTitle>
           </div>
           <CardDescription className="text-xs font-mono">
-            Add API keys for any tool not listed above — MISP, OpenCTI, ThreatConnect, etc.
+            Add any tool not listed above — MISP, OpenCTI, ThreatConnect, Joe Sandbox, etc.
           </CardDescription>
         </CardHeader>
         <CardContent className="pt-0">
-          {addingCustom ? (
-            <div className="flex gap-2">
-              <Input
-                type="text"
-                placeholder="Platform name (e.g. MISP, OpenCTI, ...)"
-                value={customPlatformName}
-                onChange={e => setCustomPlatformName(e.target.value)}
-                className="font-mono bg-background/50 border-border/50 text-xs flex-1"
-                onKeyDown={e => {
-                  if (e.key === "Enter") handleAddCustomPlatform();
-                  if (e.key === "Escape") { setAddingCustom(false); setCustomPlatformName(""); }
-                }}
-                autoFocus
-              />
-              <Button
-                size="sm"
-                onClick={handleAddCustomPlatform}
-                disabled={!customPlatformName.trim()}
-                className="font-mono text-xs uppercase shrink-0"
-              >
-                <Plus className="w-3 h-3 mr-1" /> Add
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => { setAddingCustom(false); setCustomPlatformName(""); }}
-                className="shrink-0 text-muted-foreground"
-              >
-                Cancel
-              </Button>
+          {customForm.open ? (
+            <div className="space-y-2">
+              <div className="flex gap-2">
+                <Input
+                  type="text"
+                  placeholder="Platform name (e.g. ThreatConnect)"
+                  value={customForm.platform}
+                  onChange={e => setCustomForm(f => ({ ...f, platform: e.target.value }))}
+                  className="font-mono bg-background/50 border-border/50 text-xs flex-1"
+                />
+                <Input
+                  type="text"
+                  placeholder="Label (optional)"
+                  value={customForm.label}
+                  onChange={e => setCustomForm(f => ({ ...f, label: e.target.value }))}
+                  className="font-mono bg-background/50 border-border/50 text-xs w-28 hidden sm:block"
+                />
+              </div>
+              <div className="flex gap-2">
+                <Input
+                  type="password"
+                  placeholder="API key for this platform..."
+                  value={customForm.apiKey}
+                  onChange={e => setCustomForm(f => ({ ...f, apiKey: e.target.value }))}
+                  className="font-mono bg-background/50 border-border/50 text-xs flex-1"
+                  onKeyDown={e => e.key === "Enter" && handleAddCustom()}
+                />
+                <Button
+                  size="sm"
+                  onClick={handleAddCustom}
+                  disabled={customForm.saving || !customForm.platform.trim() || !customForm.apiKey.trim()}
+                  className="font-mono text-xs uppercase shrink-0"
+                >
+                  <Save className="w-3 h-3 mr-1" />
+                  {customForm.saving ? "Saving..." : "Save"}
+                </Button>
+                <Button size="sm" variant="ghost"
+                  onClick={() => setCustomForm(f => ({ ...f, open: false, platform: "", apiKey: "", label: "" }))}
+                  className="shrink-0 text-muted-foreground">
+                  Cancel
+                </Button>
+              </div>
+              <p className="text-[10px] font-mono text-muted-foreground">
+                Platform name will be normalised (e.g. "My Tool" → my_tool) and saved permanently.
+              </p>
             </div>
           ) : (
             <Button
               size="sm"
               variant="outline"
-              onClick={() => setAddingCustom(true)}
+              onClick={() => setCustomForm(f => ({ ...f, open: true }))}
               className="w-full font-mono text-xs text-muted-foreground border-dashed border-border/40 hover:border-primary/50 hover:text-primary"
             >
               <Plus className="w-3 h-3 mr-1" /> Add Custom Platform

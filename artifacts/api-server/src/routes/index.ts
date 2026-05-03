@@ -9,6 +9,7 @@ import dashboardRouter from "./dashboard";
 import resourcesRouter from "./resources";
 import activityLogsRouter from "./activity-logs";
 import apiKeysRouter from "./api-keys";
+import blocklistRouter from "./blocklist";
 
 const router: IRouter = Router();
 
@@ -22,5 +23,6 @@ router.use(dashboardRouter);
 router.use(resourcesRouter);
 router.use(activityLogsRouter);
 router.use(apiKeysRouter);
+router.use(blocklistRouter);
 
 export default router;
