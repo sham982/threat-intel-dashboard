@@ -19,7 +19,7 @@ const filterSchema = z.object({
   offset: z.coerce.number().int().min(0).default(0),
 });
 
-// GET /api/blocklist
+// GET /api/blocklist — all authenticated users
 router.get("/blocklist", requireAuth, async (req, res): Promise<void> => {
   const parsed = filterSchema.safeParse(req.query);
   if (!parsed.success) {
@@ -48,8 +48,8 @@ router.get("/blocklist", requireAuth, async (req, res): Promise<void> => {
   res.json({ entries, total: count });
 });
 
-// POST /api/blocklist
-router.post("/blocklist", requireAuth, requireRole("admin", "analyst"), async (req, res): Promise<void> => {
+// POST /api/blocklist — all authenticated users can add entries
+router.post("/blocklist", requireAuth, async (req, res): Promise<void> => {
   const parsed = addSchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.flatten().fieldErrors });
@@ -68,7 +68,7 @@ router.post("/blocklist", requireAuth, requireRole("admin", "analyst"), async (r
   res.status(201).json(entry);
 });
 
-// DELETE /api/blocklist/:id
+// DELETE /api/blocklist/:id — admin and analyst only
 router.delete("/blocklist/:id", requireAuth, requireRole("admin", "analyst"), async (req, res): Promise<void> => {
   const id = parseInt(req.params.id, 10);
   if (isNaN(id)) {
