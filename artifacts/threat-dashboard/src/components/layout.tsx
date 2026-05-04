@@ -13,6 +13,7 @@ import {
   ChevronRight,
   Shield,
   Key,
+  FileBarChart,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -40,6 +41,7 @@ export function Layout({ children }: LayoutProps) {
     { href: "/scans", label: "Scan History", icon: List },
     { href: "/alerts", label: "Active Alerts", icon: Bell },
     { href: "/resources", label: "SOC Resources", icon: BookOpen },
+    { href: "/reports", label: "Reports", icon: FileBarChart },
   ];
 
   const adminItems = [
