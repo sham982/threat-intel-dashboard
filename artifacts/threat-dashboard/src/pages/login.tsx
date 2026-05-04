@@ -1,4 +1,4 @@
-﻿import { useState } from "react";
+import { useState } from "react";
 import { useLogin } from "@workspace/api-client-react";
 import { useAuth } from "@/lib/auth";
 import { useForm } from "react-hook-form";
@@ -72,7 +72,7 @@ export default function Login() {
             Tsedey Bank Security
           </h1>
           <p className="text-sm text-primary font-mono tracking-[0.2em] mt-2 uppercase">
-            Security Security Command Center
+            Security THREAT INTELLIGENCE
           </p>
         </div>
 
@@ -122,7 +122,7 @@ export default function Login() {
                       </div>
                       <Input 
                         type="password" 
-                        placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢" 
+                        placeholder="••••••••••••" 
                         className="pl-10 bg-background/50 border-border focus-visible:ring-primary focus-visible:border-primary font-mono" 
                         {...field} 
                       />

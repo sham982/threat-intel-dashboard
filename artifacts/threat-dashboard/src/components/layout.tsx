@@ -1,4 +1,4 @@
-﻿import { useAuth } from "@/lib/auth";
+import { useAuth } from "@/lib/auth";
 import { Link, useLocation } from "wouter";
 import { useLogout } from "@workspace/api-client-react";
 import {

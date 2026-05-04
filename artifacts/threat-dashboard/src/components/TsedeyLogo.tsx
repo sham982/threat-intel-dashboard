@@ -1,4 +1,4 @@
-﻿interface LogoProps {
+interface LogoProps {
   className?: string;
   showText?: boolean;
 }
@@ -17,7 +17,7 @@ export function TsedeyLogo({ className = "w-8 h-8", showText = true }: LogoProps
             Tsedey Bank
           </span>
           <span className="text-[9px] text-primary font-mono tracking-widest">
-            SECURITY COMMAND CENTER
+            THREAT INTELLIGENCE
           </span>
         </div>
       )}
@@ -35,3 +35,4 @@ export function TsedeyLogoIcon({ className = "w-6 h-6" }: { className?: string }
     />
   );
 }
+

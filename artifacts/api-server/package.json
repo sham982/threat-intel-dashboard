@@ -1,10 +1,10 @@
-{
+﻿{
   "name": "@workspace/api-server",
   "version": "0.0.0",
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "export NODE_ENV=development && pnpm run build && pnpm run start",
+    "dev": "set NODE_ENV=development && pnpm run build && pnpm run start",
     "build": "node ./build.mjs",
     "start": "node --enable-source-maps ./dist/index.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit"
@@ -15,9 +15,12 @@
     "bcryptjs": "^3.0.3",
     "cookie-parser": "^1.4.7",
     "cors": "^2",
+    "dotenv": "^17.4.2",
     "drizzle-orm": "catalog:",
     "express": "^5",
+    "groq-sdk": "^1.1.2",
     "jsonwebtoken": "^9.0.3",
+    "openai": "^6.35.0",
     "pino": "^9",
     "pino-http": "^10",
     "zod": "catalog:"
@@ -35,3 +38,4 @@
     "thread-stream": "3.1.0"
   }
 }
+
