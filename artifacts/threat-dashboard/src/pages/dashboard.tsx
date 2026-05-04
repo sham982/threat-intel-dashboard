@@ -1,4 +1,4 @@
-import { useGetDashboardStats, useGetScanTrend, useGetRiskBreakdown, useGetRecentActivity } from "@workspace/api-client-react";
+﻿import { useGetDashboardStats, useGetScanTrend, useGetRiskBreakdown, useGetRecentActivity } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Shield, ShieldAlert, Activity, Users, AlertTriangle, Search } from "lucide-react";
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid, PieChart, Pie, Cell, Legend } from "recharts";
@@ -192,7 +192,7 @@ export default function Dashboard() {
                   <p className="text-sm font-medium truncate">{item.description}</p>
                   <div className="flex items-center gap-2 mt-1">
                     <span className="text-[10px] uppercase font-mono text-muted-foreground">{item.username}</span>
-                    <span className="text-muted-foreground text-[10px]">•</span>
+                    <span className="text-muted-foreground text-[10px]">â€¢</span>
                     <span className="text-[10px] uppercase font-mono text-muted-foreground">{format(new Date(item.createdAt), 'MMM dd HH:mm')}</span>
                   </div>
                 </div>
@@ -217,3 +217,5 @@ export default function Dashboard() {
     </div>
   );
 }
+
+

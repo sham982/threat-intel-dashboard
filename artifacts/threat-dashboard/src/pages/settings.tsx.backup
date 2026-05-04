@@ -4,7 +4,6 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Eye, EyeOff, Key, CheckCircle2, Trash2, Save, ExternalLink,
   Plus, ChevronUp, ChevronDown, AlertCircle, Settings2,
@@ -12,7 +11,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { getAuthHeaders } from "@/lib/api-client";
 
-// Full catalogue from SOC Resources + API-capable platforms
+// ── Full catalogue from SOC Resources + API-capable platforms ─────────────────
 const KNOWN_PLATFORMS: Record<string, {
   name: string; description: string; docsUrl: string; color: string; category: string;
 }> = {
@@ -23,12 +22,12 @@ const KNOWN_PLATFORMS: Record<string, {
   },
   abuseipdb: {
     name: "AbuseIPDB", color: "text-orange-400", category: "IP Reputation",
-    description: "IP reputation and abuse reporting database � 90-day lookback.",
+    description: "IP reputation and abuse reporting database — 90-day lookback.",
     docsUrl: "https://www.abuseipdb.com/account/api",
   },
   alienvault_otx: {
     name: "AlienVault OTX", color: "text-green-400", category: "Threat Intelligence",
-    description: "Open Threat Exchange � community threat intelligence pulses.",
+    description: "Open Threat Exchange — community threat intelligence pulses.",
     docsUrl: "https://otx.alienvault.com/api",
   },
   shodan: {
@@ -48,17 +47,17 @@ const KNOWN_PLATFORMS: Record<string, {
   },
   greynoise: {
     name: "GreyNoise", color: "text-cyan-400", category: "Internet Noise Analysis",
-    description: "Classify IPs scanning the internet � separates signal from noise.",
+    description: "Classify IPs scanning the internet — separates signal from noise.",
     docsUrl: "https://viz.greynoise.io/account/",
   },
   pulsedive: {
     name: "Pulsedive", color: "text-teal-400", category: "Threat Intelligence",
-    description: "Community threat enrichment � IPs, domains, URLs and hashes.",
+    description: "Community threat enrichment — IPs, domains, URLs and hashes.",
     docsUrl: "https://pulsedive.com/account/",
   },
   threatfox: {
     name: "ThreatFox", color: "text-amber-400", category: "IOC Database",
-    description: "abuse.ch IOC sharing platform � malware, C2 indicators.",
+    description: "abuse.ch IOC sharing platform — malware, C2 indicators.",
     docsUrl: "https://threatfox.abuse.ch/api/",
   },
   ipqualityscore: {
@@ -103,12 +102,12 @@ const KNOWN_PLATFORMS: Record<string, {
   },
   hybrid_analysis: {
     name: "Hybrid Analysis", color: "text-fuchsia-400", category: "Malware Sandbox",
-    description: "Free malware analysis powered by Falcon Sandbox � Threat Score.",
+    description: "Free malware analysis powered by Falcon Sandbox — Threat Score.",
     docsUrl: "https://www.hybrid-analysis.com/my-account?tab=%23api-key-tab",
   },
   malware_bazaar: {
     name: "Malware Bazaar", color: "text-orange-300", category: "Malware Sample DB",
-    description: "abuse.ch malware sample sharing � hash and family lookup.",
+    description: "abuse.ch malware sample sharing — hash and family lookup.",
     docsUrl: "https://bazaar.abuse.ch/api/",
   },
   any_run: {
@@ -118,12 +117,12 @@ const KNOWN_PLATFORMS: Record<string, {
   },
   intezer: {
     name: "Intezer", color: "text-blue-300", category: "Malware Genome",
-    description: "Code DNA analysis � detect malware reuse and gene classification.",
+    description: "Code DNA analysis — detect malware reuse and gene classification.",
     docsUrl: "https://analyze.intezer.com/",
   },
   ibm_xforce: {
     name: "IBM X-Force", color: "text-slate-400", category: "Threat Intelligence",
-    description: "IBM threat intelligence exchange � IPs, URLs, malware, CVEs.",
+    description: "IBM threat intelligence exchange — IPs, URLs, malware, CVEs.",
     docsUrl: "https://exchange.xforce.ibmcloud.com/",
   },
   ioc_one: {
@@ -153,12 +152,12 @@ const KNOWN_PLATFORMS: Record<string, {
   },
   mandiant: {
     name: "Mandiant", color: "text-red-500", category: "Threat Intelligence",
-    description: "Enterprise threat intelligence � actors, malware, indicators.",
+    description: "Enterprise threat intelligence — actors, malware, indicators.",
     docsUrl: "https://www.mandiant.com/advantage/threat-intelligence/free-version",
   },
   crowdstrike: {
     name: "CrowdStrike", color: "text-orange-500", category: "Threat Intelligence",
-    description: "Falcon Intelligence � adversary profiles and IOC feeds.",
+    description: "Falcon Intelligence — adversary profiles and IOC feeds.",
     docsUrl: "https://www.crowdstrike.com/adversaries/",
   },
   malpedia: {
@@ -189,7 +188,7 @@ function normalizePlatform(s: string) {
   return s.trim().toLowerCase().replace(/[\s\-]+/g, "_").replace(/[^a-z0-9_]/g, "");
 }
 
-// Key row component
+// ── Key row ───────────────────────────────────────────────────────────────────
 function KeyRow({ k, total, onDelete, onMove, onToggle }: {
   k: SavedKey; total: number;
   onDelete: (id: number) => void;
@@ -226,7 +225,7 @@ function KeyRow({ k, total, onDelete, onMove, onToggle }: {
   );
 }
 
-// Platform card component
+// ── Platform card ─────────────────────────────────────────────────────────────
 function PlatformCard({ platformId, keys, onDelete, onMove, onAdd, onToggle }: {
   platformId: string; keys: SavedKey[];
   onDelete: (id: number) => void;
@@ -286,7 +285,7 @@ function PlatformCard({ platformId, keys, onDelete, onMove, onAdd, onToggle }: {
         {keys.length > 1 && (
           <p className="text-[10px] font-mono text-muted-foreground/60 flex items-center gap-1">
             <AlertCircle className="w-3 h-3" />
-            Keys tried in priority order � fallback to next when rate-limited.
+            Keys tried in priority order — fallback to next when rate-limited.
           </p>
         )}
         {showForm ? (
@@ -328,20 +327,12 @@ function PlatformCard({ platformId, keys, onDelete, onMove, onAdd, onToggle }: {
   );
 }
 
-// -- Main page -----------------------------------------------------------------
+// ── Main page ─────────────────────────────────────────────────────────────────
 export default function Settings() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [savedKeys, setSavedKeys] = useState<SavedKey[]>([]);
-  const [customForm, setCustomForm] = useState({ 
-    platform: "", 
-    category: "ip_check",
-    url: "",
-    apiKey: "", 
-    label: "", 
-    saving: false, 
-    open: false 
-  });
+  const [customForm, setCustomForm] = useState({ platform: "", apiKey: "", label: "", saving: false, open: false });
 
   const fetchKeys = useCallback(async () => {
     try {
@@ -353,6 +344,7 @@ export default function Settings() {
 
   useEffect(() => { fetchKeys(); }, [fetchKeys]);
 
+  // All platform IDs = known + any custom saved ones
   const allPlatformIds = Array.from(new Set([
     ...Object.keys(KNOWN_PLATFORMS),
     ...savedKeys.map(k => k.platform),
@@ -362,16 +354,11 @@ export default function Settings() {
     savedKeys.filter(k => k.platform === id).sort((a, b) => a.priority - b.priority);
 
   const handleAdd = async (platformId: string, apiKey: string, label: string) => {
-  const meta = KNOWN_PLATFORMS[platformId];
-  const category = meta?.category === "IP Reputation" || meta?.category === "Multi-Engine Scanner" || meta?.category === "Asset Discovery" || meta?.category === "Threat Intelligence" ? "ip_check" :
-                   meta?.category === "URL Scanner" || meta?.category === "Malware URL Feed" ? "url_check" :
-                   meta?.category === "Malware Sandbox" || meta?.category === "Malware Sample DB" ? "malware_check" : "cyber_threat_intelligence";
-  const url = meta?.docsUrl || "";
     try {
       const res = await fetch("/api/user/api-keys", {
         method: "POST",
         headers: { "Content-Type": "application/json", ...getAuthHeaders() },
-        body: JSON.stringify({ platform: platformId, category, url, apiKey, label }),
+        body: JSON.stringify({ platform: platformId, apiKey, label }),
       });
       if (!res.ok) throw new Error("Failed");
       toast({ title: "Key added", description: `Saved for ${KNOWN_PLATFORMS[platformId]?.name ?? platformId}` });
@@ -410,7 +397,7 @@ export default function Settings() {
     setSavedKeys(keys => keys.map(k => k.id === id ? { ...k, _visible: !k._visible } : k));
   };
 
-  // Custom platform handler with URL
+  // Custom platform: saves platform + first key together to DB immediately
   const handleAddCustom = async () => {
     const norm = normalizePlatform(customForm.platform);
     if (!norm || !customForm.apiKey.trim()) return;
@@ -421,19 +408,16 @@ export default function Settings() {
         headers: { "Content-Type": "application/json", ...getAuthHeaders() },
         body: JSON.stringify({
           platform: norm,
-          category: customForm.category,
-          url: customForm.url.trim(),
           apiKey: customForm.apiKey.trim(),
           label: customForm.label.trim() || `${customForm.platform} Key 1`,
         }),
       });
       if (!res.ok) throw new Error("Failed");
-      toast({ title: "Custom platform added", description: `${customForm.platform} saved to API Keys and SOC Resources` });
-      setCustomForm({ platform: "", category: "ip_check", url: "", apiKey: "", label: "", saving: false, open: false });
+      toast({ title: "Custom platform added", description: `${customForm.platform} saved to your API keys` });
+      setCustomForm({ platform: "", apiKey: "", label: "", saving: false, open: false });
       await fetchKeys();
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred';
-      toast({ title: "Failed to add custom platform", description: errorMessage, variant: "destructive" });
+    } catch {
+      toast({ title: "Failed to add custom platform", variant: "destructive" });
       setCustomForm(f => ({ ...f, saving: false }));
     }
   };
@@ -444,7 +428,7 @@ export default function Settings() {
         <h1 className="text-2xl font-bold tracking-tight uppercase">API Keys</h1>
         <p className="text-sm text-muted-foreground font-mono tracking-widest">
           OPERATOR: <span className="text-primary">{user?.username?.toUpperCase()}</span>
-          {" � "}
+          {" — "}
           <span className="text-success">{savedKeys.length}</span> KEY{savedKeys.length !== 1 ? "S" : ""} CONFIGURED
         </p>
       </div>
@@ -455,7 +439,7 @@ export default function Settings() {
           <div className="space-y-1">
             <p className="text-sm font-medium">Per-platform key rotation</p>
             <p className="text-xs text-muted-foreground font-mono leading-relaxed">
-              Add multiple keys per platform. Keys are tried in priority order � if Key #1 hits its rate limit the system automatically
+              Add multiple keys per platform. Keys are tried in priority order — if Key #1 hits its rate limit the system automatically
               falls back to Key #2. All keys are stored encrypted, accessible only to your account.
             </p>
           </div>
@@ -476,7 +460,7 @@ export default function Settings() {
         ))}
       </div>
 
-      {/* UPDATED Custom platform form with URL field */}
+      {/* Custom platform — saves to DB on first key entry */}
       <Card className="bg-card/30 border-dashed border-border/40">
         <CardHeader className="pb-2">
           <div className="flex items-center gap-2">
@@ -484,55 +468,29 @@ export default function Settings() {
             <CardTitle className="text-sm font-mono uppercase tracking-wide text-muted-foreground">Custom Platform</CardTitle>
           </div>
           <CardDescription className="text-xs font-mono">
-            Add any tool not listed above � MISP, OpenCTI, ThreatConnect, Joe Sandbox, etc.
+            Add any tool not listed above — MISP, OpenCTI, ThreatConnect, Joe Sandbox, etc.
           </CardDescription>
         </CardHeader>
         <CardContent className="pt-0">
           {customForm.open ? (
-            <div className="space-y-3">
-              {/* Row 1: Platform Name + Category */}
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="text-[10px] font-mono text-muted-foreground uppercase">Platform Name *</label>
-                  <Input
-                    type="text"
-                    placeholder="e.g. ThreatConnect"
-                    value={customForm.platform}
-                    onChange={e => setCustomForm(f => ({ ...f, platform: e.target.value }))}
-                    className="font-mono bg-background/50 border-border/50 text-xs"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-mono text-muted-foreground uppercase">Category *</label>
-                  <Select value={customForm.category} onValueChange={(v) => setCustomForm(f => ({ ...f, category: v }))}>
-                    <SelectTrigger className="font-mono bg-background/50 border-border/50 text-xs">
-                      <SelectValue placeholder="Select category" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="ip_check" className="font-mono text-xs">?? IP Tools</SelectItem>
-                      <SelectItem value="url_check" className="font-mono text-xs">?? URL & Domain</SelectItem>
-                      <SelectItem value="malware_check" className="font-mono text-xs">?? Malware Analysis</SelectItem>
-                      <SelectItem value="cyber_threat_intelligence" className="font-mono text-xs">?? CTI Sources</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              
-              {/* Row 2: URL */}
-              <div className="space-y-1">
-                <label className="text-[10px] font-mono text-muted-foreground uppercase">Platform URL *</label>
+            <div className="space-y-2">
+              <div className="flex gap-2">
                 <Input
-                  type="url"
-                  placeholder="https://example.com"
-                  value={customForm.url}
-                  onChange={e => setCustomForm(f => ({ ...f, url: e.target.value }))}
-                  className="font-mono bg-background/50 border-border/50 text-xs"
+                  type="text"
+                  placeholder="Platform name (e.g. ThreatConnect)"
+                  value={customForm.platform}
+                  onChange={e => setCustomForm(f => ({ ...f, platform: e.target.value }))}
+                  className="font-mono bg-background/50 border-border/50 text-xs flex-1"
                 />
-                <p className="text-[9px] font-mono text-muted-foreground">The website URL for this platform</p>
+                <Input
+                  type="text"
+                  placeholder="Label (optional)"
+                  value={customForm.label}
+                  onChange={e => setCustomForm(f => ({ ...f, label: e.target.value }))}
+                  className="font-mono bg-background/50 border-border/50 text-xs w-28 hidden sm:block"
+                />
               </div>
-              
-              {/* Row 3: API Key + Label */}
-              <div className="flex gap-3">
+              <div className="flex gap-2">
                 <Input
                   type="password"
                   placeholder="API key for this platform..."
@@ -541,37 +499,23 @@ export default function Settings() {
                   className="font-mono bg-background/50 border-border/50 text-xs flex-1"
                   onKeyDown={e => e.key === "Enter" && handleAddCustom()}
                 />
-                <Input
-                  type="text"
-                  placeholder="Label (optional)"
-                  value={customForm.label}
-                  onChange={e => setCustomForm(f => ({ ...f, label: e.target.value }))}
-                  className="font-mono bg-background/50 border-border/50 text-xs w-32"
-                  onKeyDown={e => e.key === "Enter" && handleAddCustom()}
-                />
-              </div>
-              
-              {/* Row 4: Actions */}
-              <div className="flex gap-2">
                 <Button
                   size="sm"
                   onClick={handleAddCustom}
-                  disabled={customForm.saving || !customForm.platform.trim() || !customForm.url.trim() || !customForm.apiKey.trim()}
+                  disabled={customForm.saving || !customForm.platform.trim() || !customForm.apiKey.trim()}
                   className="font-mono text-xs uppercase shrink-0"
                 >
                   <Save className="w-3 h-3 mr-1" />
-                  {customForm.saving ? "Saving..." : "Add Platform"}
+                  {customForm.saving ? "Saving..." : "Save"}
                 </Button>
                 <Button size="sm" variant="ghost"
-                  onClick={() => setCustomForm(f => ({ ...f, open: false, platform: "", category: "ip_check", url: "", apiKey: "", label: "" }))}
+                  onClick={() => setCustomForm(f => ({ ...f, open: false, platform: "", apiKey: "", label: "" }))}
                   className="shrink-0 text-muted-foreground">
                   Cancel
                 </Button>
               </div>
-              
               <p className="text-[10px] font-mono text-muted-foreground">
-                ? Platform will be added to API Keys with your API key<br />
-                ? Platform will be added to SOC Resources with the URL and category you selected
+                Platform name will be normalised (e.g. "My Tool" → my_tool) and saved permanently.
               </p>
             </div>
           ) : (
