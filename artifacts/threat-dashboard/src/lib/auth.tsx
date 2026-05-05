@@ -1,3 +1,7 @@
+﻿import { setBaseUrl } from "@workspace/api-client-react";
+
+// Set the API base URL to your backend
+setBaseUrl("http://localhost:3000");
 import { createContext, useContext, useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { setAuthTokenGetter } from "@workspace/api-client-react";
@@ -96,3 +100,4 @@ export function ProtectedRoute({ component: Component, adminOnly = false, ...res
 
   return <Component {...rest} />;
 }
+

@@ -1,4 +1,4 @@
-﻿@import "tailwindcss";
+@import "tailwindcss";
 @import "tw-animate-css";
 @plugin "@tailwindcss/typography";
 
@@ -77,11 +77,12 @@
 
 /* Tsedey Bank Theme Colors */
 :root {
-  --tsedey-green: 88 58% 55%;
-  --tsedey-teal: 178 70% 41%;
-  --tsedey-light-green: 78 48% 78%;
-  --tsedey-light-teal: 178 23% 79%;
-  --tsedey-lime: 64 60% 52%;
+  /* Tsedey Bank Brand Colors */
+  --tsedey-green: 88 58% 55%;  /* #8bc74c */
+  --tsedey-teal: 178 70% 41%;   /* #1bb7b6 */
+  --tsedey-light-green: 78 48% 78%; /* #d1e3a9 */
+  --tsedey-light-teal: 178 23% 79%; /* #bad7d4 */
+  --tsedey-lime: 64 60% 52%;  /* #c6cc3b */
 }
 
 /* Dark Theme (Default) */
@@ -97,21 +98,19 @@
   --foreground: 210 20% 98%;
   --border: 220 15% 15%;
   --input: 220 15% 15%;
-  --ring: 88 58% 55%;
+  --ring: 88 58% 55%; /* Tsedey Green for ring */
 
   --card: 220 15% 8%;
   --card-foreground: 210 20% 98%;
   --card-border: 220 15% 15%;
 
   --sidebar: 220 15% 6%;
-  --sidebar-foreground: 210 20% 98%;
+  --sidebar-foreground: 210 20% 90%;
   --sidebar-border: 220 15% 12%;
   --sidebar-primary: 88 58% 55%;
   --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-primary-border: 88 58% 45%;
   --sidebar-accent: 178 70% 41%;
   --sidebar-accent-foreground: 0 0% 100%;
-  --sidebar-accent-border: 178 70% 35%;
   --sidebar-ring: 88 58% 55%;
 
   --popover: 220 15% 8%;
@@ -196,7 +195,7 @@
   --elevate-1: rgba(0,0,0, .03);
   --elevate-2: rgba(0,0,0, .06);
 
-  --background: 60 14% 97%;
+  --background: 60 14% 97%;  /* Light cream background */
   --foreground: 220 15% 10%;
   --border: 78 12% 85%;
   --input: 78 12% 90%;
@@ -211,10 +210,8 @@
   --sidebar-border: 78 12% 85%;
   --sidebar-primary: 88 58% 55%;
   --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-primary-border: 88 58% 45%;
   --sidebar-accent: 178 70% 41%;
   --sidebar-accent-foreground: 0 0% 100%;
-  --sidebar-accent-border: 178 70% 35%;
   --sidebar-ring: 88 58% 55%;
 
   --popover: 0 0% 100%;
@@ -262,38 +259,78 @@
   }
 }
 
+/* Rest of your utilities remain the same... */
+
+/**
+ * Using the elevate system.
+ * Automatic contrast adjustment.
+ *
+ * <element className="hover-elevate" />
+ * <element className="active-elevate-2" />
+ *
+ * // Using the tailwind utility when a data attribute is "on"
+ * <element className="toggle-elevate data-[state=on]:toggle-elevated" />
+ * // Or manually controlling the toggle state
+ * <element className="toggle-elevate toggle-elevated" />
+ *
+ * Elevation systems have to handle many states.
+ * - not-hovered, vs. hovered vs. active  (three mutually exclusive states)
+ * - toggled or not
+ * - focused or not (this is not handled with these utilities)
+ *
+ * Even without handling focused or not, this is six possible combinations that
+ * need to be distinguished from eachother visually.
+ */
 @layer utilities {
+
+  /* Hide ugly search cancel button in Chrome until we can style it properly */
   input[type="search"]::-webkit-search-cancel-button {
     @apply hidden;
   }
 
+  /* Placeholder styling for contentEditable div */
   [contenteditable][data-placeholder]:empty::before {
     content: attr(data-placeholder);
     color: hsl(var(--muted-foreground));
     pointer-events: none;
   }
 
+  /* .no-default-hover-elevate/no-default-active-elevate is an escape hatch so consumers of
+   * buttons/badges can remove the automatic brightness adjustment on interactions
+   * and program their own. */
   .no-default-hover-elevate {}
+
   .no-default-active-elevate {}
 
+
+  /**
+   * Toggleable backgrounds go behind the content. Hoverable/active goes on top.
+   * This way they can stack/compound. Both will overlap the parent's borders!
+   * So borders will be automatically adjusted both on toggle, and hover/active,
+   * and they will be compounded.
+   */
   .toggle-elevate::before,
   .toggle-elevate-2::before {
     content: "";
     pointer-events: none;
     position: absolute;
     inset: 0px;
+    /*border-radius: inherit;   match rounded corners */
     border-radius: inherit;
     z-index: -1;
+    /* sits behind content but above backdrop */
   }
 
   .toggle-elevate.toggle-elevated::before {
     background-color: var(--elevate-2);
   }
 
+  /* If there's a 1px border, adjust the inset so that it covers that parent's border */
   .border.toggle-elevate::before {
     inset: -1px;
   }
 
+  /* Does not work on elements with overflow:hidden! */
   .hover-elevate:not(.no-default-hover-elevate),
   .active-elevate:not(.no-default-active-elevate),
   .hover-elevate-2:not(.no-default-hover-elevate),
@@ -310,8 +347,10 @@
     pointer-events: none;
     position: absolute;
     inset: 0px;
+    /*border-radius: inherit;   match rounded corners */
     border-radius: inherit;
     z-index: 999;
+    /* sits in front of content */
   }
 
   .hover-elevate:hover:not(.no-default-hover-elevate)::after,
@@ -324,65 +363,12 @@
     background-color: var(--elevate-2);
   }
 
+  /* If there's a 1px border, adjust the inset so that it covers that parent's border */
   .border.hover-elevate:not(.no-hover-interaction-elevate)::after,
   .border.active-elevate:not(.no-active-interaction-elevate)::after,
   .border.hover-elevate-2:not(.no-hover-interaction-elevate)::after,
   .border.active-elevate-2:not(.no-active-interaction-elevate)::after,
   .border.hover-elevate:not(.no-hover-interaction-elevate)::after {
     inset: -1px;
-  }
-}
-
-/* Custom scrollbar for sidebar */
-.sidebar-scroll::-webkit-scrollbar {
-  width: 4px;
-}
-
-.sidebar-scroll::-webkit-scrollbar-track {
-  background: hsl(var(--sidebar-border));
-  border-radius: 4px;
-}
-
-.sidebar-scroll::-webkit-scrollbar-thumb {
-  background: hsl(var(--sidebar-primary));
-  border-radius: 4px;
-}
-
-.sidebar-scroll::-webkit-scrollbar-thumb:hover {
-  background: hsl(var(--sidebar-accent));
-}
-
-/* Sidebar transition effects */
-aside {
-  transition: all 0.2s ease-in-out;
-}
-
-aside:hover {
-  box-shadow: 4px 0 20px rgba(0, 0, 0, 0.1);
-}
-
-/* Active nav item glow effect */
-.group.active-nav {
-  position: relative;
-  overflow: hidden;
-}
-
-.group.active-nav::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: linear-gradient(90deg, transparent, rgba(139, 199, 76, 0.1), transparent);
-  animation: shimmer 2s infinite;
-}
-
-@keyframes shimmer {
-  0% {
-    transform: translateX(-100%);
-  }
-  100% {
-    transform: translateX(100%);
   }
 }

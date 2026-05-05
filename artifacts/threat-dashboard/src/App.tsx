@@ -16,6 +16,7 @@ import Resources from "@/pages/resources";
 import Users from "@/pages/users";
 import Logs from "@/pages/logs";
 import Settings from "@/pages/settings";
+import Reports from "@/pages/reports";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -46,6 +47,9 @@ function Router() {
       </Route>
       <Route path="/resources">
         {() => <ProtectedRoute component={() => <Layout><Resources /></Layout>} />}
+      </Route>
+      <Route path="/reports">
+        {() => <ProtectedRoute component={() => <Layout><Reports /></Layout>} />}
       </Route>
       <Route path="/settings">
         {() => <ProtectedRoute component={() => <Layout><Settings /></Layout>} />}

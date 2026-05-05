@@ -1,6 +1,6 @@
-import { Router, type IRouter } from "express";
+﻿import { Router, type IRouter } from "express";
 import { eq, and, ilike, desc, sql } from "drizzle-orm";
-import { db, scansTable, alertsTable, activityLogsTable, usersTable } from "@workspace/db";
+import { db, scansTable, alertsTable, activityLogsTable, usersTable, userApiKeysTable } from "@workspace/db";
 import {
   ListScansQueryParams,
   CreateScanBody,
@@ -69,6 +69,21 @@ router.post("/scans", requireAuth, requireRole("admin", "analyst"), async (req, 
 
   const { indicatorType, indicatorValue, notes } = parsed.data;
 
+  // Fetch user's API keys from database
+  const userApiKeys = await db
+    .select({
+      platform: userApiKeysTable.platform,
+      apiKey: userApiKeysTable.apiKey,
+    })
+    .from(userApiKeysTable)
+    .where(eq(userApiKeysTable.userId, req.user!.userId));
+
+  // Convert to a map for easy lookup
+  const apiKeysMap: Record<string, string> = {};
+  for (const key of userApiKeys) {
+    apiKeysMap[key.platform] = key.apiKey;
+  }
+
   const [pendingScan] = await db
     .insert(scansTable)
     .values({
@@ -83,7 +98,7 @@ router.post("/scans", requireAuth, requireRole("admin", "analyst"), async (req, 
     })
     .returning();
 
-  const { sources, riskScore, riskLevel } = await runThreatScan(indicatorType, indicatorValue);
+  const { sources, riskScore, riskLevel } = await runThreatScan(indicatorType, indicatorValue, apiKeysMap);
 
   const [scan] = await db
     .update(scansTable)

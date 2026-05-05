@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+﻿import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/lib/auth";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -23,12 +23,12 @@ const KNOWN_PLATFORMS: Record<string, {
   },
   abuseipdb: {
     name: "AbuseIPDB", color: "text-orange-400", category: "IP Reputation",
-    description: "IP reputation and abuse reporting database � 90-day lookback.",
+    description: "IP reputation and abuse reporting database — 90-day lookback.",
     docsUrl: "https://www.abuseipdb.com/account/api",
   },
   alienvault_otx: {
     name: "AlienVault OTX", color: "text-green-400", category: "Threat Intelligence",
-    description: "Open Threat Exchange � community threat intelligence pulses.",
+    description: "Open Threat Exchange — community threat intelligence pulses.",
     docsUrl: "https://otx.alienvault.com/api",
   },
   shodan: {
@@ -48,17 +48,17 @@ const KNOWN_PLATFORMS: Record<string, {
   },
   greynoise: {
     name: "GreyNoise", color: "text-cyan-400", category: "Internet Noise Analysis",
-    description: "Classify IPs scanning the internet � separates signal from noise.",
+    description: "Classify IPs scanning the internet — separates signal from noise.",
     docsUrl: "https://viz.greynoise.io/account/",
   },
   pulsedive: {
     name: "Pulsedive", color: "text-teal-400", category: "Threat Intelligence",
-    description: "Community threat enrichment � IPs, domains, URLs and hashes.",
+    description: "Community threat enrichment — IPs, domains, URLs and hashes.",
     docsUrl: "https://pulsedive.com/account/",
   },
   threatfox: {
     name: "ThreatFox", color: "text-amber-400", category: "IOC Database",
-    description: "abuse.ch IOC sharing platform � malware, C2 indicators.",
+    description: "abuse.ch IOC sharing platform — malware, C2 indicators.",
     docsUrl: "https://threatfox.abuse.ch/api/",
   },
   ipqualityscore: {
@@ -103,12 +103,12 @@ const KNOWN_PLATFORMS: Record<string, {
   },
   hybrid_analysis: {
     name: "Hybrid Analysis", color: "text-fuchsia-400", category: "Malware Sandbox",
-    description: "Free malware analysis powered by Falcon Sandbox � Threat Score.",
+    description: "Free malware analysis powered by Falcon Sandbox — Threat Score.",
     docsUrl: "https://www.hybrid-analysis.com/my-account?tab=%23api-key-tab",
   },
   malware_bazaar: {
     name: "Malware Bazaar", color: "text-orange-300", category: "Malware Sample DB",
-    description: "abuse.ch malware sample sharing � hash and family lookup.",
+    description: "abuse.ch malware sample sharing — hash and family lookup.",
     docsUrl: "https://bazaar.abuse.ch/api/",
   },
   any_run: {
@@ -118,12 +118,12 @@ const KNOWN_PLATFORMS: Record<string, {
   },
   intezer: {
     name: "Intezer", color: "text-blue-300", category: "Malware Genome",
-    description: "Code DNA analysis � detect malware reuse and gene classification.",
+    description: "Code DNA analysis — detect malware reuse and gene classification.",
     docsUrl: "https://analyze.intezer.com/",
   },
   ibm_xforce: {
     name: "IBM X-Force", color: "text-slate-400", category: "Threat Intelligence",
-    description: "IBM threat intelligence exchange � IPs, URLs, malware, CVEs.",
+    description: "IBM threat intelligence exchange — IPs, URLs, malware, CVEs.",
     docsUrl: "https://exchange.xforce.ibmcloud.com/",
   },
   ioc_one: {
@@ -153,12 +153,12 @@ const KNOWN_PLATFORMS: Record<string, {
   },
   mandiant: {
     name: "Mandiant", color: "text-red-500", category: "Threat Intelligence",
-    description: "Enterprise threat intelligence � actors, malware, indicators.",
+    description: "Enterprise threat intelligence — actors, malware, indicators.",
     docsUrl: "https://www.mandiant.com/advantage/threat-intelligence/free-version",
   },
   crowdstrike: {
     name: "CrowdStrike", color: "text-orange-500", category: "Threat Intelligence",
-    description: "Falcon Intelligence � adversary profiles and IOC feeds.",
+    description: "Falcon Intelligence — adversary profiles and IOC feeds.",
     docsUrl: "https://www.crowdstrike.com/adversaries/",
   },
   malpedia: {
@@ -286,7 +286,7 @@ function PlatformCard({ platformId, keys, onDelete, onMove, onAdd, onToggle }: {
         {keys.length > 1 && (
           <p className="text-[10px] font-mono text-muted-foreground/60 flex items-center gap-1">
             <AlertCircle className="w-3 h-3" />
-            Keys tried in priority order � fallback to next when rate-limited.
+            Keys tried in priority order — fallback to next when rate-limited.
           </p>
         )}
         {showForm ? (
@@ -328,7 +328,7 @@ function PlatformCard({ platformId, keys, onDelete, onMove, onAdd, onToggle }: {
   );
 }
 
-// -- Main page -----------------------------------------------------------------
+// ── Main page ─────────────────────────────────────────────────────────────────
 export default function Settings() {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -362,16 +362,11 @@ export default function Settings() {
     savedKeys.filter(k => k.platform === id).sort((a, b) => a.priority - b.priority);
 
   const handleAdd = async (platformId: string, apiKey: string, label: string) => {
-  const meta = KNOWN_PLATFORMS[platformId];
-  const category = meta?.category === "IP Reputation" || meta?.category === "Multi-Engine Scanner" || meta?.category === "Asset Discovery" || meta?.category === "Threat Intelligence" ? "ip_check" :
-                   meta?.category === "URL Scanner" || meta?.category === "Malware URL Feed" ? "url_check" :
-                   meta?.category === "Malware Sandbox" || meta?.category === "Malware Sample DB" ? "malware_check" : "cyber_threat_intelligence";
-  const url = meta?.docsUrl || "";
     try {
       const res = await fetch("/api/user/api-keys", {
         method: "POST",
         headers: { "Content-Type": "application/json", ...getAuthHeaders() },
-        body: JSON.stringify({ platform: platformId, category, url, apiKey, label }),
+        body: JSON.stringify({ platform: platformId, apiKey, label }),
       });
       if (!res.ok) throw new Error("Failed");
       toast({ title: "Key added", description: `Saved for ${KNOWN_PLATFORMS[platformId]?.name ?? platformId}` });
@@ -444,7 +439,7 @@ export default function Settings() {
         <h1 className="text-2xl font-bold tracking-tight uppercase">API Keys</h1>
         <p className="text-sm text-muted-foreground font-mono tracking-widest">
           OPERATOR: <span className="text-primary">{user?.username?.toUpperCase()}</span>
-          {" � "}
+          {" — "}
           <span className="text-success">{savedKeys.length}</span> KEY{savedKeys.length !== 1 ? "S" : ""} CONFIGURED
         </p>
       </div>
@@ -455,7 +450,7 @@ export default function Settings() {
           <div className="space-y-1">
             <p className="text-sm font-medium">Per-platform key rotation</p>
             <p className="text-xs text-muted-foreground font-mono leading-relaxed">
-              Add multiple keys per platform. Keys are tried in priority order � if Key #1 hits its rate limit the system automatically
+              Add multiple keys per platform. Keys are tried in priority order — if Key #1 hits its rate limit the system automatically
               falls back to Key #2. All keys are stored encrypted, accessible only to your account.
             </p>
           </div>
@@ -484,7 +479,7 @@ export default function Settings() {
             <CardTitle className="text-sm font-mono uppercase tracking-wide text-muted-foreground">Custom Platform</CardTitle>
           </div>
           <CardDescription className="text-xs font-mono">
-            Add any tool not listed above � MISP, OpenCTI, ThreatConnect, Joe Sandbox, etc.
+            Add any tool not listed above — MISP, OpenCTI, ThreatConnect, Joe Sandbox, etc.
           </CardDescription>
         </CardHeader>
         <CardContent className="pt-0">
@@ -509,10 +504,10 @@ export default function Settings() {
                       <SelectValue placeholder="Select category" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="ip_check" className="font-mono text-xs">?? IP Tools</SelectItem>
-                      <SelectItem value="url_check" className="font-mono text-xs">?? URL & Domain</SelectItem>
-                      <SelectItem value="malware_check" className="font-mono text-xs">?? Malware Analysis</SelectItem>
-                      <SelectItem value="cyber_threat_intelligence" className="font-mono text-xs">?? CTI Sources</SelectItem>
+                      <SelectItem value="ip_check" className="font-mono text-xs">🌐 IP Tools</SelectItem>
+                      <SelectItem value="url_check" className="font-mono text-xs">🔗 URL & Domain</SelectItem>
+                      <SelectItem value="malware_check" className="font-mono text-xs">🦠 Malware Analysis</SelectItem>
+                      <SelectItem value="cyber_threat_intelligence" className="font-mono text-xs">📡 CTI Sources</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -570,8 +565,8 @@ export default function Settings() {
               </div>
               
               <p className="text-[10px] font-mono text-muted-foreground">
-                ? Platform will be added to API Keys with your API key<br />
-                ? Platform will be added to SOC Resources with the URL and category you selected
+                ✓ Platform will be added to API Keys with your API key<br />
+                ✓ Platform will be added to SOC Resources with the URL and category you selected
               </p>
             </div>
           ) : (

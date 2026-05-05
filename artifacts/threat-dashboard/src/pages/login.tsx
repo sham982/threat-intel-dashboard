@@ -69,10 +69,10 @@ export default function Login() {
           </div>
           
           <h1 className="text-2xl font-bold tracking-tight text-foreground uppercase text-center">
-            Threat Intelligence
+            Tsedey Bank Security
           </h1>
           <p className="text-sm text-primary font-mono tracking-[0.2em] mt-2 uppercase">
-            Command Center
+            Security THREAT INTELLIGENCE
           </p>
         </div>
 
@@ -158,3 +158,6 @@ export default function Login() {
     </div>
   );
 }
+
+
+

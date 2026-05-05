@@ -1,6 +1,6 @@
-import { Router, type IRouter } from "express";
+﻿import { Router, type IRouter } from "express";
 import { eq, and, asc } from "drizzle-orm";
-import { db, userApiKeysTable } from "@workspace/db";
+import { db, userApiKeysTable, socResourcesTable } from "@workspace/db";
 import { requireAuth } from "../lib/auth";
 import { z } from "zod";
 
@@ -8,6 +8,8 @@ const router: IRouter = Router();
 
 const addKeySchema = z.object({
   platform: z.string().min(1, "Platform name is required").max(80),
+  category: z.enum(["ip_check", "url_check", "malware_check", "cyber_threat_intelligence"]).optional(),
+  url: z.string().url("Must be a valid URL").optional(),
   apiKey: z.string().min(1, "API key is required"),
   label: z.string().max(120).optional(),
 });
@@ -16,7 +18,7 @@ const updatePrioritySchema = z.object({
   direction: z.enum(["up", "down"]),
 });
 
-// GET all keys for current user, sorted by platform then priority
+// GET all keys for current user
 router.get("/user/api-keys", requireAuth, async (req, res): Promise<void> => {
   const keys = await db
     .select({
@@ -49,7 +51,7 @@ router.post("/user/api-keys", requireAuth, async (req, res): Promise<void> => {
     return;
   }
 
-  const { platform, apiKey, label } = parsed.data;
+  const { platform, category, url, apiKey, label } = parsed.data;
   const platformNorm = platform.trim().toLowerCase().replace(/\s+/g, "_");
 
   // Find the current max priority for this platform/user
@@ -74,18 +76,38 @@ router.post("/user/api-keys", requireAuth, async (req, res): Promise<void> => {
     priority: nextPriority,
   }).returning({ id: userApiKeysTable.id, priority: userApiKeysTable.priority });
 
+  // ALSO create a SOC Resource for this platform if it doesn't exist yet AND we have category and url
+  if (category && url && url.trim() !== "") {
+    const existingResource = await db
+      .select()
+      .from(socResourcesTable)
+      .where(eq(socResourcesTable.name, platformNorm))
+      .limit(1);
+
+    if (existingResource.length === 0) {
+      // Format the name for display (capitalize first letters)
+      const displayName = platformNorm.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+      
+      await db.insert(socResourcesTable).values({
+        category: category,
+        name: displayName,
+        url: url,
+        description: `Custom threat intelligence platform. API key configured in Settings.`,
+      });
+    }
+  }
+
   res.status(201).json({ message: "API key added", id: newKey.id, priority: newKey.priority });
 });
 
 // DELETE a specific key by ID
 router.delete("/user/api-keys/:id", requireAuth, async (req, res): Promise<void> => {
-  const id = parseInt(req.params.id, 10);
-  if (isNaN(id)) {
+  const id = parseIdParam(req.params.id);
+  if (id === null) {
     res.status(400).json({ error: "Invalid key ID" });
     return;
   }
 
-  // Verify ownership
   const key = await db
     .select({ id: userApiKeysTable.id, platform: userApiKeysTable.platform, priority: userApiKeysTable.priority })
     .from(userApiKeysTable)
@@ -116,10 +138,10 @@ router.delete("/user/api-keys/:id", requireAuth, async (req, res): Promise<void>
   res.json({ message: "API key removed" });
 });
 
-// PATCH — move a key up or down in priority for its platform
+// PATCH — move a key up or down in priority
 router.patch("/user/api-keys/:id/priority", requireAuth, async (req, res): Promise<void> => {
-  const id = parseInt(req.params.id, 10);
-  if (isNaN(id)) {
+  const id = parseIdParam(req.params.id);
+  if (id === null) {
     res.status(400).json({ error: "Invalid key ID" });
     return;
   }
@@ -158,7 +180,6 @@ router.patch("/user/api-keys/:id/priority", requireAuth, async (req, res): Promi
     return;
   }
 
-  // Swap priorities
   const currentPriority = siblings[currentIdx].priority;
   const swapPriority = siblings[swapIdx].priority;
 
@@ -167,6 +188,13 @@ router.patch("/user/api-keys/:id/priority", requireAuth, async (req, res): Promi
 
   res.json({ message: "Priority updated" });
 });
+
+function parseIdParam(rawId: string | string[]): number | null {
+  const value = Array.isArray(rawId) ? rawId[0] : rawId;
+  if (!value) return null;
+  const id = parseInt(value, 10);
+  return Number.isNaN(id) ? null : id;
+}
 
 function maskKey(key: string): string {
   if (key.length <= 8) return "•".repeat(key.length);
