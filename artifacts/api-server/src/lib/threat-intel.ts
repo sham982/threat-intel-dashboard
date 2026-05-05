@@ -6,6 +6,16 @@
   details?: string;
   url?: string;
   category?: string;
+  // New detailed fields
+  isp?: string;
+  asn?: string;
+  location?: string;
+  reports?: number;
+  confidence?: number;
+  usageType?: string;
+  domain?: string;
+  country?: string;
+  city?: string;
 }
 
 function notConfigured(name: string, url: string, category?: string): ScanSourceResult {
@@ -295,3 +305,9 @@ export async function runThreatScan(
 
   return { sources: results, riskScore, riskLevel };
 }
+
+
+
+
+
+

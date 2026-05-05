@@ -1,4 +1,4 @@
-﻿import React, { useState } from "react";
+﻿import React, { useState, useCallback, useEffect } from "react";
 import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   Search, ShieldAlert, ShieldCheck, ShieldQuestion, Activity, ExternalLink,
   ChevronDown, ChevronUp, AlertTriangle, CheckCircle2, HelpCircle,
-  Download, FileText, FileSpreadsheet, AlertCircle, Settings,
+  Download, FileText, FileSpreadsheet, AlertCircle, Settings, Bot, Loader2,
 } from "lucide-react";
 import { Link } from "wouter";
 import { AIAssistant } from "@/components/AIAssistant";
@@ -27,6 +27,15 @@ interface SourceResult {
   details?: string;
   url?: string;
   category?: string;
+  isp?: string;
+  asn?: string;
+  location?: string;
+  reports?: number;
+  confidence?: number;
+  usageType?: string;
+  domain?: string;
+  country?: string;
+  city?: string;
 }
 
 const STATUS_CONFIG: Record<string, { label: string; badge: string; icon: React.ReactNode }> = {
@@ -73,36 +82,64 @@ function exportCSV(scan: Scan, sources: SourceResult[]) {
 
 function exportExcel(scan: Scan, sources: SourceResult[]) {
   const wb = XLSX.utils.book_new();
+  
+  // Add logo reference as comment (Excel doesn't support images easily with xlsx library)
+  // We'll use cell comments and styling instead
+  
   const summaryRows = [
-    ["Field", "Value"],
-    ["Report", "Tsedey Bank Threat Intelligence"],
-    ["Indicator", scan.indicatorValue],
-    ["Type", scan.indicatorType],
-    ["Risk Level", scan.riskLevel.toUpperCase()],
-    ["Risk Score", scan.riskScore],
-    ["Scanned At", new Date(scan.createdAt as string).toLocaleString()],
-    [],
-    ["Metric", "Count"],
-    ["Total Sources", sources.length],
-    ["Malicious", sources.filter(s => s.status === "malicious").length],
-    ["Suspicious", sources.filter(s => s.status === "suspicious").length],
-    ["Clean", sources.filter(s => s.status === "clean").length],
-    ["Not Configured", sources.filter(s => s.status === "error").length],
+    ["=".repeat(50)],
+    ["TSEDEY BANK - THREAT INTELLIGENCE REPORT"],
+    ["=".repeat(50)],
+    ["Report Generated:", new Date().toLocaleString()],
+    ["=".repeat(50)],
+    ["SCAN INFORMATION"],
+    ["Indicator:", scan.indicatorValue],
+    ["Type:", scan.indicatorType.toUpperCase()],
+    ["Risk Level:", scan.riskLevel.toUpperCase()],
+    ["Risk Score:", `${scan.riskScore}/100`],
+    ["Scanned At:", new Date(scan.createdAt as string).toLocaleString()],
+    ["=".repeat(50)],
+    ["THREAT SUMMARY"],
+    ["Total Sources:", sources.length],
+    ["Malicious:", sources.filter(s => s.status === "malicious").length],
+    ["Suspicious:", sources.filter(s => s.status === "suspicious").length],
+    ["Clean:", sources.filter(s => s.status === "clean").length],
+    ["Not Configured:", sources.filter(s => s.status === "error").length],
   ];
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(summaryRows), "Tsedey Summary");
+  
+  const ws1 = XLSX.utils.aoa_to_sheet(summaryRows);
+  
+  // Add styling to header (green background for row 2)
+  if (ws1['!merges']) ws1['!merges'] = [];
+  ws1['!merges'] = [{ s: { r: 1, c: 0 }, e: { r: 1, c: 1 } }];
+  
+  ws1["!cols"] = [{ wch: 25 }, { wch: 50 }];
+  XLSX.utils.book_append_sheet(wb, ws1, "Tsedey Summary");
+  
+  // Sources Sheet with brand name
   const srcRows = [
-    ["Source", "Category", "Status", "Detections", "Total Engines", "Details", "Link"],
+    ["TSEDEY BANK SOURCE DETAILS"],
+    ["=".repeat(60)],
+    ["SOURCE", "CATEGORY", "STATUS", "DETECTIONS", "TOTAL ENGINES", "DETAILS", "URL"],
     ...sources.map(s => [
       s.name, s.category ?? "", s.status.toUpperCase(),
-      s.detections ?? "", s.totalEngines ?? "", s.details ?? "", s.url ?? "",
+      s.detections !== undefined ? `${s.detections}${s.totalEngines ? `/${s.totalEngines}` : ""}` : "-",
+      s.totalEngines ?? "-",
+      s.details ?? "",
+      s.url ?? "",
     ]),
   ];
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(srcRows), "Source Results");
-  XLSX.writeFile(wb, `tsedey-threat-scan-${slugify(scan.indicatorValue)}.xlsx`);
+  const ws2 = XLSX.utils.aoa_to_sheet(srcRows);
+  ws2["!cols"] = [{ wch: 25 }, { wch: 20 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 50 }, { wch: 40 }];
+  XLSX.utils.book_append_sheet(wb, ws2, "Source Results");
+  
+  XLSX.writeFile(wb, `tsedey-threat-scan-${slugify(scan.indicatorValue)}-${Date.now()}.xlsx`);
 }
 
 function exportPDF(scan: Scan, sources: SourceResult[]) {
-  const doc = new jsPDF();
+  const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+  
+  // Tsedey Bank Header with brand colors
   doc.setFillColor(139, 199, 76);
   doc.rect(0, 0, doc.internal.pageSize.width, 35, "F");
   doc.setTextColor(255, 255, 255);
@@ -113,44 +150,64 @@ function exportPDF(scan: Scan, sources: SourceResult[]) {
   doc.text("Threat Intelligence Report", 14, 28);
   doc.setTextColor(0, 0, 0);
   doc.setFontSize(9);
+  
   const meta = [
     `Indicator: ${scan.indicatorValue}`,
     `Type: ${scan.indicatorType.toUpperCase()}   Risk Level: ${scan.riskLevel.toUpperCase()}   Risk Score: ${scan.riskScore}/100`,
     `Scanned: ${new Date(scan.createdAt as string).toLocaleString()}`,
   ];
   meta.forEach((line, i) => doc.text(line, 14, 48 + i * 6));
+  
   const configured = sources.filter(s => s.status !== "error");
   const errors = sources.filter(s => s.status === "error");
-  autoTable(doc, {
+  
+  // Use autoTable with safe options
+  (autoTable as any)(doc, {
     head: [["Source", "Category", "Status", "Detections", "Details"]],
     body: configured.map(s => [
-      s.name, s.category ?? "", s.status.toUpperCase(),
+      s.name,
+      s.category ?? "",
+      s.status.toUpperCase(),
       s.detections !== undefined ? `${s.detections}${s.totalEngines ? `/${s.totalEngines}` : ""}` : "-",
-      (s.details ?? "").replace(" (simulated - add API key in settings)", ""),
+      (s.details ?? "").replace(" (simulated - add API key in settings)", "").substring(0, 100),
     ]),
     startY: 68,
-    styles: { fontSize: 7.5, cellPadding: 2 },
+    styles: { fontSize: 7, cellPadding: 2, overflow: "linebreak" },
     headStyles: { fillColor: [139, 199, 76], textColor: [255, 255, 255] },
-    alternateRowStyles: { fillColor: [186, 215, 212] },
+    alternateRowStyles: { fillColor: [240, 248, 240] },
+    columnStyles: {
+      0: { cellWidth: 35 },
+      1: { cellWidth: 30 },
+      2: { cellWidth: 20 },
+      3: { cellWidth: 20 },
+      4: { cellWidth: "auto" },
+    },
+    margin: { left: 10, right: 10 },
   });
+  
   if (errors.length > 0) {
-    const finalY = (doc as any).lastAutoTable?.finalY ?? 100;
-    doc.setFontSize(9);
+    const finalY = (doc as any).lastAutoTable?.finalY ?? 120;
+    doc.setFontSize(8);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(139, 199, 76);
-    doc.text(`${errors.length} sources not configured:`, 14, finalY + 10);
+    doc.text(`${errors.length} source(s) not configured:`, 14, finalY + 8);
     doc.setTextColor(100, 100, 100);
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(8);
-    errors.forEach((s, i) => doc.text(`- ${s.name}`, 16, finalY + 17 + i * 5));
+    doc.setFontSize(7);
+    errors.forEach((s, i) => {
+      if (i < 10) {
+        doc.text(`- ${s.name}`, 16, finalY + 15 + i * 4);
+      }
+    });
   }
+  
   doc.save(`tsedey-threat-scan-${slugify(scan.indicatorValue)}.pdf`);
 }
-
 function SourceRow({ source }: { source: SourceResult }) {
   const [expanded, setExpanded] = useState(false);
   const cfg = STATUS_CONFIG[source.status] ?? STATUS_CONFIG.unknown;
   const isError = source.status === "error";
+  const hasRichData = source.isp || source.asn || source.location || source.reports || source.confidence || source.usageType || source.domain;
 
   return (
     <React.Fragment key={source.name}>
@@ -161,18 +218,30 @@ function SourceRow({ source }: { source: SourceResult }) {
             {source.category && <span className="text-[10px] font-mono text-[#1bb7b6] uppercase tracking-wide">{source.category}</span>}
           </div>
         </td>
-        <td className="px-4 py-3"><Badge variant="outline" className={`font-mono text-[10px] flex items-center gap-1 w-fit ${cfg.badge}`}>{cfg.icon} {cfg.label}</Badge></td>
+        <td className="px-4 py-3">
+          <Badge variant="outline" className={`font-mono text-[10px] flex items-center gap-1 w-fit ${cfg.badge}`}>
+            {cfg.icon} {cfg.label}
+          </Badge>
+        </td>
         <td className="px-4 py-3 font-mono text-sm">
           {!isError && source.detections !== undefined && source.totalEngines !== undefined ? (
-            <span className={source.detections > 0 ? "text-red-500 font-semibold" : "text-[#8bc74c]"}>{source.detections} / {source.totalEngines}</span>
-          ) : <span className="text-muted-foreground/40">-</span>}
+            <span className={source.detections > 0 ? "text-red-500 font-semibold" : "text-[#8bc74c]"}>
+              {source.detections} / {source.totalEngines}
+            </span>
+          ) : !isError && source.reports ? (
+            <span className="text-red-500 font-semibold">{source.reports.toLocaleString()} reports</span>
+          ) : (
+            <span className="text-muted-foreground/40">-</span>
+          )}
         </td>
         <td className="px-4 py-3">
           <div className="flex items-center gap-2 justify-end">
             {!isError && source.url && (
-              <a href={source.url} target="_blank" rel="noreferrer" className="text-[#1bb7b6] hover:text-[#8bc74c] transition-colors inline-flex items-center gap-1 text-xs font-mono">View <ExternalLink className="w-3 h-3" /></a>
+              <a href={source.url} target="_blank" rel="noreferrer" className="text-[#1bb7b6] hover:text-[#8bc74c] transition-colors inline-flex items-center gap-1 text-xs font-mono">
+                View <ExternalLink className="w-3 h-3" />
+              </a>
             )}
-            {source.details && !isError && (
+            {(source.details || hasRichData) && !isError && (
               <button onClick={() => setExpanded(e => !e)} className="text-muted-foreground hover:text-[#8bc74c] transition-colors p-0.5">
                 {expanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
               </button>
@@ -180,10 +249,81 @@ function SourceRow({ source }: { source: SourceResult }) {
           </div>
         </td>
       </tr>
-      {expanded && !isError && source.details && (
+      {expanded && !isError && (
         <tr className="border-b border-border/20 bg-muted/10">
           <td colSpan={4} className="px-4 py-3">
-            <p className="text-xs font-mono text-muted-foreground leading-relaxed">{source.details}</p>
+            <div className="space-y-2">
+              {/* Rich Data Display - Grid layout for detailed info */}
+              {(source.isp || source.asn || source.location || source.country || source.city || source.confidence !== undefined || source.reports || source.usageType || source.domain) && (
+                <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
+                  {source.isp && (
+                    <>
+                      <span className="font-mono text-muted-foreground">ISP:</span>
+                      <span className="font-mono text-foreground font-medium">{source.isp}</span>
+                    </>
+                  )}
+                  {source.asn && (
+                    <>
+                      <span className="font-mono text-muted-foreground">ASN:</span>
+                      <span className="font-mono text-foreground font-medium">{source.asn}</span>
+                    </>
+                  )}
+                  {source.location && (
+                    <>
+                      <span className="font-mono text-muted-foreground">Location:</span>
+                      <span className="font-mono text-foreground font-medium">{source.location}</span>
+                    </>
+                  )}
+                  {source.country && (
+                    <>
+                      <span className="font-mono text-muted-foreground">Country:</span>
+                      <span className="font-mono text-foreground font-medium">{source.country}</span>
+                    </>
+                  )}
+                  {source.city && (
+                    <>
+                      <span className="font-mono text-muted-foreground">City:</span>
+                      <span className="font-mono text-foreground font-medium">{source.city}</span>
+                    </>
+                  )}
+                  {source.confidence !== undefined && (
+                    <>
+                      <span className="font-mono text-muted-foreground">Confidence:</span>
+                      <span className={`font-mono font-bold ${source.confidence > 50 ? "text-red-500" : source.confidence > 20 ? "text-yellow-500" : "text-green-500"}`}>
+                        {source.confidence}%
+                      </span>
+                    </>
+                  )}
+                  {source.reports && (
+                    <>
+                      <span className="font-mono text-muted-foreground">Total Reports:</span>
+                      <span className="font-mono font-bold text-red-500">{source.reports.toLocaleString()}</span>
+                    </>
+                  )}
+                  {source.usageType && source.usageType !== "Unknown" && (
+                    <>
+                      <span className="font-mono text-muted-foreground">Usage Type:</span>
+                      <span className="font-mono text-foreground font-medium">{source.usageType}</span>
+                    </>
+                  )}
+                  {source.domain && source.domain !== "Unknown" && (
+                    <>
+                      <span className="font-mono text-muted-foreground">Domain:</span>
+                      <span className="font-mono text-foreground font-medium">{source.domain}</span>
+                    </>
+                  )}
+                </div>
+              )}
+              
+              {/* Description/Details section */}
+              {source.details && (
+                <div className="mt-2 pt-2 border-t border-border/30">
+                  <p className="text-xs font-mono text-muted-foreground leading-relaxed break-words">
+                    {source.details}
+                  </p>
+                </div>
+              )}
+            </div>
           </td>
         </tr>
       )}
@@ -195,12 +335,16 @@ export default function Lookup() {
   const [indicatorType, setIndicatorType] = useState<ScanIndicatorType>("ip");
   const [indicatorValue, setIndicatorValue] = useState("");
   const [scanResult, setScanResult] = useState<Scan | null>(null);
+  const [aiAnalysis, setAiAnalysis] = useState<string | null>(null);
+  const [isAiAnalyzing, setIsAiAnalyzing] = useState(false);
+  
   const createScan = useCreateScan({ mutation: { onSuccess: (data) => setScanResult(data) } });
 
   const handleLookup = (e: React.FormEvent) => {
     e.preventDefault();
     if (!indicatorValue.trim()) return;
     setScanResult(null);
+    setAiAnalysis(null);
     createScan.mutate({ data: { indicatorType, indicatorValue: indicatorValue.trim() } });
   };
 
@@ -216,6 +360,47 @@ export default function Lookup() {
     (acc[cat] ??= []).push(s);
     return acc;
   }, {});
+
+  const getAiAnalysis = useCallback(async (scanResultData: Scan, sourcesList: SourceResult[]) => {
+    console.log("🔍 AI Analysis started for:", scanResultData.indicatorValue);
+    setIsAiAnalyzing(true);
+    try {
+      const malCount = sourcesList.filter(s => s.status === "malicious").length;
+      const suspCount = sourcesList.filter(s => s.status === "suspicious").length;
+      const clnCount = sourcesList.filter(s => s.status === "clean").length;
+      
+      const response = await fetch("/api/analyze-scan", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          indicatorValue: scanResultData.indicatorValue,
+          indicatorType: scanResultData.indicatorType,
+          riskScore: scanResultData.riskScore,
+          riskLevel: scanResultData.riskLevel,
+          sources: sourcesList.map(s => ({ name: s.name, status: s.status })),
+          summary: { maliciousCount: malCount, suspiciousCount: suspCount, cleanCount: clnCount, totalSources: sourcesList.length }
+        }),
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setAiAnalysis(data.analysis);
+      } else {
+        setAiAnalysis("Analysis temporarily unavailable.");
+      }
+    } catch (error) {
+      console.error("AI analysis error:", error);
+      setAiAnalysis("Unable to fetch analysis.");
+    } finally {
+      setIsAiAnalyzing(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (scanResult && sources.length > 0 && !isAiAnalyzing) {
+      getAiAnalysis(scanResult, sources);
+    }
+  }, [scanResult, sources]);
 
   const byUnconfigured = errorSources.reduce<Record<string, SourceResult[]>>((acc, s) => {
     const cat = s.category ?? "Other";
@@ -294,7 +479,10 @@ export default function Lookup() {
               <Card className="col-span-3 bg-gradient-to-br from-card/80 to-card/40">
                 <CardContent className="py-3 px-4">
                   <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
-                    <p className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Detection Consensus ({activeSources.length} active sources)</p>
+                    <p className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
+                      Detection Consensus ({activeSources.length} active sources)
+                      {isAiAnalyzing && <Loader2 className="w-3 h-3 inline ml-2 animate-spin text-[#8bc74c]" />}
+                    </p>
                     <div className="flex items-center gap-1.5">
                       <span className="text-[10px] font-mono text-muted-foreground">Export:</span>
                       <Button size="sm" variant="outline" className="h-6 px-2 text-[10px]" onClick={() => exportCSV(scanResult, sources)}><FileText className="w-3 h-3 mr-1" /> CSV</Button>
@@ -302,6 +490,18 @@ export default function Lookup() {
                       <Button size="sm" variant="outline" className="h-6 px-2 text-[10px]" onClick={() => exportPDF(scanResult, sources)}><Download className="w-3 h-3 mr-1" /> PDF</Button>
                     </div>
                   </div>
+                  
+                  {/* AI Summary Analysis */}
+                  {aiAnalysis && !isAiAnalyzing && (
+                    <div className="mb-3 p-3 rounded-lg bg-gradient-to-r from-[#8bc74c]/10 to-[#1bb7b6]/10 border border-[#8bc74c]/20">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Bot className="w-3.5 h-3.5 text-[#8bc74c]" />
+                        <span className="text-[10px] font-mono font-bold text-[#8bc74c] uppercase tracking-wider">AI THREAT SUMMARY</span>
+                      </div>
+                      <p className="text-xs font-mono leading-relaxed text-foreground/90 whitespace-pre-wrap">{aiAnalysis}</p>
+                    </div>
+                  )}
+                  
                   {activeSources.length > 0 ? (
                     <div className="flex h-3 rounded-full overflow-hidden gap-px">
                       {maliciousCount > 0 && <div className="bg-red-500 transition-all" style={{ width: `${(maliciousCount / activeSources.length) * 100}%` }} />}
@@ -309,7 +509,11 @@ export default function Lookup() {
                       {cleanCount > 0 && <div className="bg-[#8bc74c] transition-all" style={{ width: `${(cleanCount / activeSources.length) * 100}%` }} />}
                     </div>
                   ) : <div className="h-3 rounded-full bg-muted/30" />}
-                  <div className="flex gap-4 mt-2"><span className="text-[10px] font-mono text-red-500">● {maliciousCount} malicious</span><span className="text-[10px] font-mono text-yellow-500">● {suspiciousCount} suspicious</span><span className="text-[10px] font-mono text-[#8bc74c]">● {cleanCount} clean</span></div>
+                  <div className="flex gap-4 mt-2">
+                    <span className="text-[10px] font-mono text-red-500">● {maliciousCount} malicious</span>
+                    <span className="text-[10px] font-mono text-yellow-500">● {suspiciousCount} suspicious</span>
+                    <span className="text-[10px] font-mono text-[#8bc74c]">● {cleanCount} clean</span>
+                  </div>
                 </CardContent>
               </Card>
             </div>

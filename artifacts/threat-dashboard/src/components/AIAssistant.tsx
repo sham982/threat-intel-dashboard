@@ -4,9 +4,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
-import { Bot, X, Send, Loader2, Minimize2, Maximize2 } from "lucide-react";
+import { X, Send, Loader2, Minimize2, Maximize2 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
+import { useTheme } from "@/contexts/ThemeContext";
 
 interface Message {
   id: string;
@@ -23,6 +23,7 @@ interface AIAssistantProps {
 
 export function AIAssistant({ indicatorValue, indicatorType, scanResults }: AIAssistantProps) {
   const { user } = useAuth();
+  const { theme } = useTheme();
   const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -30,17 +31,20 @@ export function AIAssistant({ indicatorValue, indicatorType, scanResults }: AIAs
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Welcome message on open
+  const backgroundImage = theme === 'dark' 
+    ? "url('/chat-background-dark.png')" 
+    : "url('/chat-background.png')";
+
   useEffect(() => {
     if (isOpen && messages.length === 0) {
       let welcomeMessage = "";
-      if (indicatorValue) {
-        welcomeMessage = `I see you are analyzing ${indicatorValue}. The risk score is ${scanResults?.riskScore || 0}/100 (${scanResults?.riskLevel?.toUpperCase() || "UNKNOWN"}). Would you like me to explain this assessment?`;
+      if (indicatorValue && scanResults) {
+        welcomeMessage = `Hello! I see you are analyzing **${indicatorValue}**. The risk score is **${scanResults.riskScore}/100** (${scanResults.riskLevel?.toUpperCase() || "UNKNOWN"}). Would you like me to explain what this means?`;
       } else {
         welcomeMessage = `Hello! I am your AI security assistant. What would you like to know?`;
       }
       setMessages([{
-        id: "welcome",
+        id: Date.now().toString(),
         role: "assistant",
         content: welcomeMessage,
         timestamp: new Date(),
@@ -54,57 +58,13 @@ export function AIAssistant({ indicatorValue, indicatorType, scanResults }: AIAs
     }
   }, [messages, isOpen]);
 
-  // Simple greeting responses - handle locally without calling API
-  const getGreetingResponse = (input: string): string | null => {
-    const cleanInput = input.toLowerCase().trim();
-    
-    // Short greetings
-    if (cleanInput === "hi" || cleanInput === "hey") {
-      return "Hi there! How can I help with your security analysis today?";
-    }
-    if (cleanInput === "hello") {
-      return "Hello! Ready to assist with threat intelligence. What are we looking at?";
-    }
-    if (cleanInput === "how are you") {
-      return "I'm ready to help! What security question do you have?";
-    }
-    
-    // Help requests
-    if (cleanInput.includes("what can you do") || cleanInput === "help") {
-      return "I can analyze threat indicators (IPs, domains, URLs, hashes), explain risk scores, and provide security recommendations. Share an indicator or ask a security question.";
-    }
-    
-    return null;
-  };
-
   const sendMessage = async () => {
     if (!input.trim() || isLoading) return;
-
-    const userInput = input.trim();
-    
-    // Check for greeting first - handle locally
-    const greetingResponse = getGreetingResponse(userInput);
-    if (greetingResponse) {
-      setMessages(prev => [...prev, {
-        id: Date.now().toString(),
-        role: "user",
-        content: userInput,
-        timestamp: new Date(),
-      }]);
-      setMessages(prev => [...prev, {
-        id: (Date.now() + 1).toString(),
-        role: "assistant",
-        content: greetingResponse,
-        timestamp: new Date(),
-      }]);
-      setInput("");
-      return;
-    }
 
     const userMessage: Message = {
       id: Date.now().toString(),
       role: "user",
-      content: userInput,
+      content: input.trim(),
       timestamp: new Date(),
     };
     setMessages(prev => [...prev, userMessage]);
@@ -116,7 +76,7 @@ export function AIAssistant({ indicatorValue, indicatorType, scanResults }: AIAs
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          message: userInput,
+          message: input.trim(),
           indicatorValue: indicatorValue,
           scanResults: scanResults ? {
             riskLevel: scanResults.riskLevel,
@@ -125,9 +85,10 @@ export function AIAssistant({ indicatorValue, indicatorType, scanResults }: AIAs
         }),
       });
 
-      if (!response.ok) throw new Error("AI service error");
+      if (!response.ok) throw new Error("API error");
 
       const data = await response.json();
+      
       setMessages(prev => [...prev, {
         id: (Date.now() + 1).toString(),
         role: "assistant",
@@ -135,10 +96,11 @@ export function AIAssistant({ indicatorValue, indicatorType, scanResults }: AIAs
         timestamp: new Date(),
       }]);
     } catch (error) {
+      console.error("AI Error:", error);
       setMessages(prev => [...prev, {
         id: (Date.now() + 1).toString(),
         role: "assistant",
-        content: "I'm having trouble connecting. Please try again.",
+        content: "Connection error. Please check if the backend is running.",
         timestamp: new Date(),
       }]);
     } finally {
@@ -157,39 +119,55 @@ export function AIAssistant({ indicatorValue, indicatorType, scanResults }: AIAs
     return (
       <button
         onClick={() => setIsOpen(true)}
-        className="fixed bottom-6 right-6 z-50 p-4 rounded-full bg-gradient-to-r from-[#8bc74c] to-[#1bb7b6] shadow-lg hover:shadow-xl transition-all duration-300 group"
+        className="fixed bottom-6 right-6 z-50 p-0 transition-all duration-300 group"
       >
-        <div className="absolute inset-0 rounded-full animate-pulse bg-[#8bc74c]/40 opacity-50 group-hover:opacity-75" />
-        <Bot className="w-6 h-6 text-white relative z-10" />
-        <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-[#c6cc3b] rounded-full border-2 border-white animate-pulse" />
+        <img 
+          src="/bot-logo.png" 
+          alt="AI Assistant" 
+          className="w-20 h-20 rounded-full object-cover hover:scale-105 transition-transform duration-200 shadow-lg"
+          onError={(e) => {
+            (e.target as HTMLImageElement).style.display = 'none';
+          }}
+        />
+        <span className="absolute top-0 right-0 w-3.5 h-3.5 bg-[#c6cc3b] rounded-full border-2 border-white animate-pulse" />
       </button>
     );
   }
 
   return (
-    <Card className={`fixed bottom-6 right-6 z-50 w-[480px] shadow-2xl transition-all duration-300 bg-gradient-to-br from-card/95 to-card/80 backdrop-blur-xl border-[#8bc74c]/30 overflow-hidden ${
-      isMinimized ? "h-[60px]" : "h-[620px]"
-    }`}>
+    <Card 
+      className={`fixed bottom-6 right-6 z-50 w-[480px] shadow-2xl transition-all duration-300 bg-cover bg-center bg-no-repeat border-[#8bc74c]/30 overflow-hidden ${
+        isMinimized ? "h-[60px]" : "h-[620px]"
+      }`}
+      style={{ backgroundImage: backgroundImage }}
+    >
+      <div className="absolute inset-0 bg-black/30 pointer-events-none" />
       <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#8bc74c] via-[#1bb7b6] to-[#c6cc3b]" />
       
-      <CardHeader className="py-3 px-4 border-b border-border/30 bg-gradient-to-r from-[#8bc74c]/5 to-[#1bb7b6]/5">
+      <CardHeader className="relative z-10 py-3 px-4 border-b border-white/20 bg-gradient-to-r from-[#8bc74c]/80 to-[#1bb7b6]/80 backdrop-blur-sm">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="p-1.5 rounded-xl bg-gradient-to-br from-[#8bc74c] to-[#1bb7b6] shadow-md">
-              <Bot className="w-4 h-4 text-white" />
+            <div className="w-10 h-10 flex items-center justify-center">
+              <img 
+                src="/bot-logo.png" 
+                alt="AI Assistant" 
+                className="w-full h-full object-contain"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).style.display = 'none';
+                }}
+              />
             </div>
             <div>
-              <CardTitle className="text-sm font-mono uppercase tracking-wider flex items-center gap-2">
+              <CardTitle className="text-sm font-mono uppercase tracking-wider text-white">
                 AI ASSISTANT
-                <Badge variant="outline" className="text-[8px] text-[#8bc74c] border-[#8bc74c]/30">READY</Badge>
               </CardTitle>
             </div>
           </div>
           <div className="flex items-center gap-1">
-            <button onClick={() => setIsMinimized(!isMinimized)} className="p-1.5 rounded-lg hover:bg-muted/20">
+            <button onClick={() => setIsMinimized(!isMinimized)} className="p-1.5 rounded-lg hover:bg-white/20 transition-colors text-white">
               {isMinimized ? <Maximize2 className="w-3.5 h-3.5" /> : <Minimize2 className="w-3.5 h-3.5" />}
             </button>
-            <button onClick={() => setIsOpen(false)} className="p-1.5 rounded-lg hover:bg-muted/20">
+            <button onClick={() => setIsOpen(false)} className="p-1.5 rounded-lg hover:bg-white/20 transition-colors text-white">
               <X className="w-3.5 h-3.5" />
             </button>
           </div>
@@ -198,43 +176,55 @@ export function AIAssistant({ indicatorValue, indicatorType, scanResults }: AIAs
 
       {!isMinimized && (
         <>
-          <CardContent className="p-0 flex-1 flex flex-col h-[calc(100%-60px)]">
+          <CardContent className="relative z-10 p-0 flex-1 flex flex-col h-[calc(100%-60px)]">
             <ScrollArea className="flex-1 px-4 py-3">
               <div className="space-y-4">
                 {messages.map((msg) => (
                   <div key={msg.id} className={`flex gap-3 ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
                     {msg.role === "assistant" && (
-                      <Avatar className="w-7 h-7 rounded-xl bg-gradient-to-br from-[#8bc74c] to-[#1bb7b6]">
-                        <AvatarFallback className="text-white"><Bot className="w-3.5 h-3.5" /></AvatarFallback>
-                      </Avatar>
+                      <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0">
+                        <img 
+                          src="/bot-logo.png" 
+                          alt="AI" 
+                          className="w-full h-full object-contain"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).style.display = 'none';
+                          }}
+                        />
+                      </div>
                     )}
                     <div className={`max-w-[75%] rounded-xl px-4 py-2.5 ${
                       msg.role === "user"
-                        ? "bg-gradient-to-r from-[#8bc74c] to-[#1bb7b6] text-white"
-                        : "bg-muted/30 border border-border/30"
+                        ? "bg-gradient-to-r from-[#8bc74c] to-[#1bb7b6] text-white shadow-md"
+                        : "bg-white/90 backdrop-blur-sm border border-white/30 text-gray-800"
                     }`}>
                       <div className="text-xs font-mono leading-relaxed whitespace-pre-wrap">
                         {msg.content}
                       </div>
-                      <p className="text-[8px] font-mono opacity-40 mt-2">
+                      <p className="text-[8px] font-mono opacity-60 mt-2">
                         {msg.timestamp.toLocaleTimeString()}
                       </p>
                     </div>
                     {msg.role === "user" && (
-                      <Avatar className="w-7 h-7 rounded-xl bg-muted">
-                        <AvatarFallback className="text-[10px] font-mono">
-                          {user?.username?.charAt(0).toUpperCase() || "U"}
-                        </AvatarFallback>
-                      </Avatar>
+                      <div className="w-10 h-10 rounded-xl bg-gradient-to-r from-[#8bc74c] to-[#1bb7b6] flex items-center justify-center text-white text-xs font-bold shrink-0">
+                        {user?.username?.charAt(0).toUpperCase() || "U"}
+                      </div>
                     )}
                   </div>
                 ))}
                 {isLoading && (
                   <div className="flex gap-3">
-                    <Avatar className="w-7 h-7 rounded-xl bg-gradient-to-br from-[#8bc74c] to-[#1bb7b6] animate-pulse">
-                      <AvatarFallback><Bot className="w-3.5 h-3.5" /></AvatarFallback>
-                    </Avatar>
-                    <div className="bg-muted/30 rounded-xl px-4 py-2.5">
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 animate-pulse">
+                      <img 
+                        src="/bot-logo.png" 
+                        alt="AI" 
+                        className="w-full h-full object-contain"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).style.display = 'none';
+                        }}
+                      />
+                    </div>
+                    <div className="bg-white/90 backdrop-blur-sm rounded-xl px-4 py-2.5">
                       <Loader2 className="w-3.5 h-3.5 animate-spin text-[#8bc74c]" />
                     </div>
                   </div>
@@ -243,25 +233,36 @@ export function AIAssistant({ indicatorValue, indicatorType, scanResults }: AIAs
               </div>
             </ScrollArea>
 
-            <div className="p-3 border-t border-border/30">
+            <div className="p-3 border-t border-white/20 bg-white/10 backdrop-blur-sm">
               <div className="flex gap-2">
                 <Input
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyPress={handleKeyPress}
                   placeholder="Ask about threat analysis..."
-                  className="flex-1 bg-background/50 border-border/40 font-mono text-xs h-9"
+                  className="flex-1 bg-white/20 border-white/30 font-mono text-xs h-9 text-white placeholder:text-white/70"
                   disabled={isLoading}
                 />
                 <Button
                   size="sm"
                   onClick={sendMessage}
                   disabled={isLoading || !input.trim()}
-                  className="h-9 px-4 bg-gradient-to-r from-[#8bc74c] to-[#1bb7b6]"
+                  className="h-9 px-4 bg-gradient-to-r from-[#8bc74c] to-[#1bb7b6] text-white"
                 >
                   {isLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
                 </Button>
               </div>
+              {indicatorValue && (
+                <div className="flex items-center gap-1.5 mt-2 pt-1">
+                  <div className={`w-1.5 h-1.5 rounded-full ${
+                    scanResults?.riskLevel === "high" ? "bg-red-500 animate-pulse" :
+                    scanResults?.riskLevel === "medium" ? "bg-yellow-500" : "bg-[#8bc74c]"
+                  }`} />
+                  <p className="text-[9px] font-mono text-white/80">
+                    Analyzing: {indicatorValue}
+                  </p>
+                </div>
+              )}
             </div>
           </CardContent>
         </>
@@ -269,3 +270,5 @@ export function AIAssistant({ indicatorValue, indicatorType, scanResults }: AIAs
     </Card>
   );
 }
+
+
