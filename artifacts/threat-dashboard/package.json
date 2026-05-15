@@ -76,6 +76,8 @@
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
+    "ag-grid-community": "^35.2.1",
+    "ag-grid-react": "^35.2.1",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.7",
     "xlsx": "^0.18.5"

@@ -1,4 +1,4 @@
-﻿import { defineConfig } from "vite";
+import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import path from "path";
@@ -16,7 +16,7 @@ export default defineConfig({
     host: "0.0.0.0",
     proxy: {
       "/api": {
-        target: "http://localhost:3001",
+        target: "http://192.168.113.193:3001",
         changeOrigin: true,
       },
     },
@@ -26,5 +26,3 @@ export default defineConfig({
     emptyOutDir: true,
   },
 });
-
-

@@ -1,10 +1,10 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { useLogin } from "@workspace/api-client-react";
 import { useAuth } from "@/lib/auth";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { ShieldAlert, Lock, User as UserIcon } from "lucide-react";
+import { Lock, User, ArrowRight, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -52,112 +52,144 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background relative overflow-hidden dark">
-      {/* Background ambient elements */}
-      <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] bg-primary/10 blur-[120px] rounded-full pointer-events-none" />
-      <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] bg-destructive/10 blur-[120px] rounded-full pointer-events-none" />
+    <div 
+      className="min-h-screen flex items-center justify-center relative overflow-hidden bg-cover bg-center bg-no-repeat"
+      style={{ backgroundImage: "url('/login-bgrd.png')" }}
+    >
+      {/* Dark overlay for better text readability */}
+      <div className="absolute inset-0 bg-black/40 pointer-events-none" />
       
       {/* Grid overlay */}
-      <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none" />
+      <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff08_1px,transparent_1px),linear-gradient(to_bottom,#ffffff08_1px,transparent_1px)] bg-[size:32px_32px] pointer-events-none" />
 
-      <div className="relative z-10 w-full max-w-md p-8 md:p-10 bg-card/60 backdrop-blur-xl border border-border shadow-2xl shadow-black/50 rounded-lg">
+      <div className="relative z-10 w-full max-w-md mx-4">
         
-        <div className="flex flex-col items-center mb-8">
-          <div className="w-16 h-16 bg-primary/10 border border-primary/30 rounded-2xl flex items-center justify-center mb-6 shadow-[0_0_30px_rgba(var(--primary)_/_0.2)] relative">
-            <div className="absolute inset-0 border border-primary/50 rounded-2xl animate-[ping_3s_ease-in-out_infinite]" />
-            <ShieldAlert className="w-8 h-8 text-primary" />
-          </div>
+        {/* Main Card */}
+        <div className="bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl overflow-hidden border border-white/20">
           
-          <h1 className="text-2xl font-bold tracking-tight text-foreground uppercase text-center">
-            Tsedey Bank Security
-          </h1>
-          <p className="text-sm text-primary font-mono tracking-[0.2em] mt-2 uppercase">
-            Security THREAT INTELLIGENCE
-          </p>
-        </div>
-
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+          {/* Top gradient bar */}
+          <div className="h-1.5 bg-gradient-to-r from-[#8bc74c] via-[#1bb7b6] to-[#c6cc3b]" />
+          
+          <div className="p-8 md:p-8">
             
-            {errorMsg && (
-              <div className="p-3 bg-destructive/10 border border-destructive/30 rounded-md flex items-start gap-3">
-                <div className="w-1.5 h-1.5 rounded-full bg-destructive mt-1.5 animate-pulse" />
-                <p className="text-sm text-destructive-foreground font-mono">{errorMsg}</p>
+            {/* Logo & Title Section */}
+            <div className="flex flex-col items-center mb-6 text-center">
+              <div className="w-16 h-16 mb-3 relative">
+                <div className="absolute inset-0 bg-gradient-to-br from-[#8bc74c]/20 to-[#1bb7b6]/20 rounded-2xl blur-lg" />
+                <img 
+                  src="/logo.png" 
+                  alt="Tsedey Bank" 
+                  className="w-full h-full object-contain relative z-10"
+                />
               </div>
-            )}
+              
+              <h1 className="text-xl font-bold bg-gradient-to-r from-[#8bc74c] to-[#1bb7b6] bg-clip-text text-transparent">
+                Welcome Back
+              </h1>
+              <p className="text-xs text-gray-500 mt-0.5 font-mono">
+                Sign in to your account
+              </p>
+            </div>
 
-            <FormField
-              control={form.control}
-              name="username"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-xs uppercase tracking-wider font-mono text-muted-foreground">Operator ID</FormLabel>
-                  <FormControl>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <UserIcon className="h-4 w-4 text-muted-foreground" />
-                      </div>
-                      <Input 
-                        placeholder="Enter your username" 
-                        className="pl-10 bg-background/50 border-border focus-visible:ring-primary focus-visible:border-primary font-mono" 
-                        {...field} 
-                      />
-                    </div>
-                  </FormControl>
-                  <FormMessage className="text-xs font-mono" />
-                </FormItem>
-              )}
-            />
+            {/* Form */}
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                
+                {/* Error Message */}
+                {errorMsg && (
+                  <div className="p-2.5 bg-red-50 border-l-4 border-red-500 rounded-lg">
+                    <p className="text-sm text-red-600 font-mono">{errorMsg}</p>
+                  </div>
+                )}
 
-            <FormField
-              control={form.control}
-              name="password"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-xs uppercase tracking-wider font-mono text-muted-foreground">Access Code</FormLabel>
-                  <FormControl>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <Lock className="h-4 w-4 text-muted-foreground" />
-                      </div>
-                      <Input 
-                        type="password" 
-                        placeholder="••••••••••••" 
-                        className="pl-10 bg-background/50 border-border focus-visible:ring-primary focus-visible:border-primary font-mono" 
-                        {...field} 
-                      />
-                    </div>
-                  </FormControl>
-                  <FormMessage className="text-xs font-mono" />
-                </FormItem>
-              )}
-            />
+                {/* Username Field */}
+                <FormField
+                  control={form.control}
+                  name="username"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                        Username
+                      </FormLabel>
+                      <FormControl>
+                        <div className="relative group">
+                          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <User className="h-5 w-5 text-gray-400 group-focus-within:text-[#8bc74c] transition-colors" />
+                          </div>
+                          <Input 
+                            placeholder="Enter your username" 
+                            className="pl-10 h-11 bg-gray-100 border-gray-200 focus:border-[#8bc74c] focus:ring-[#8bc74c]/20 font-mono transition-all duration-200 rounded-lg text-gray-800 placeholder:text-gray-400" 
+                            {...field} 
+                          />
+                        </div>
+                      </FormControl>
+                      <FormMessage className="text-xs font-mono text-red-500" />
+                    </FormItem>
+                  )}
+                />
 
-            <Button 
-              type="submit" 
-              className="w-full h-12 uppercase tracking-widest font-bold text-xs" 
-              disabled={loginMutation.isPending}
-            >
-              {loginMutation.isPending ? "Authenticating..." : "Initialize Session"}
-            </Button>
-          </form>
-        </Form>
+                {/* Password Field */}
+                <FormField
+                  control={form.control}
+                  name="password"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                        Password
+                      </FormLabel>
+                      <FormControl>
+                        <div className="relative group">
+                          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <Lock className="h-5 w-5 text-gray-400 group-focus-within:text-[#8bc74c] transition-colors" />
+                          </div>
+                          <Input 
+                            type="password" 
+                            placeholder="Enter your password" 
+                            className="pl-10 h-11 bg-gray-100 border-gray-200 focus:border-[#8bc74c] focus:ring-[#8bc74c]/20 font-mono transition-all duration-200 rounded-lg text-gray-800 placeholder:text-gray-400" 
+                            {...field} 
+                          />
+                        </div>
+                      </FormControl>
+                      <FormMessage className="text-xs font-mono text-red-500" />
+                    </FormItem>
+                  )}
+                />
 
-        <div className="mt-8 text-center border-t border-border/50 pt-6 space-y-3">
-          <p className="text-[10px] text-muted-foreground font-mono uppercase tracking-widest">
-            Restricted System. Authorized personnel only.
-          </p>
-          <p className="text-xs text-muted-foreground font-mono">
-            New operator?{" "}
-            <a href="/register" className="text-primary hover:underline underline-offset-4 transition-colors">
-              Request clearance
-            </a>
-          </p>
+                {/* Submit Button */}
+                <Button 
+                  type="submit" 
+                  className="w-full h-11 bg-gradient-to-r from-[#8bc74c] to-[#1bb7b6] hover:from-[#7ab33d] hover:to-[#159a99] text-white font-bold rounded-lg transition-all duration-300 transform hover:scale-[1.02] group mt-2"
+                  disabled={loginMutation.isPending}
+                >
+                  <span className="flex items-center justify-center gap-2">
+                    {loginMutation.isPending ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        Authenticating...
+                      </>
+                    ) : (
+                      <>
+                        Sign In
+                        <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                      </>
+                    )}
+                  </span>
+                </Button>
+              </form>
+            </Form>
+
+            {/* Security Badge */}
+            <div className="mt-6 text-center">
+              <div className="inline-flex items-center gap-2 px-3 py-1 bg-gray-100 rounded-full">
+                <Shield className="w-3 h-3 text-[#8bc74c]" />
+                <span className="text-[10px] text-gray-600 font-mono uppercase tracking-wider">
+                  Secure Login • 256-bit SSL
+                </span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
   );
 }
-
-
-

@@ -12,6 +12,7 @@ import {
   Search, ShieldAlert, ShieldCheck, ShieldQuestion, Activity, ExternalLink,
   ChevronDown, ChevronUp, AlertTriangle, CheckCircle2, HelpCircle,
   Download, FileText, FileSpreadsheet, AlertCircle, Settings, Bot, Loader2,
+  MapPin, Globe, Server, Building2, Network, Fingerprint, Shield,
 } from "lucide-react";
 import { Link } from "wouter";
 import { AIAssistant } from "@/components/AIAssistant";
@@ -36,6 +37,19 @@ interface SourceResult {
   domain?: string;
   country?: string;
   city?: string;
+  hostname?: string;
+  maliciousEngines?: string[];
+  suspiciousEngines?: string[];
+  cleanEngines?: string[];
+  unratedEngines?: string[];
+  lastAnalysisDate?: string;
+  asOwner?: string;
+  pulseCount?: number;
+  pulseDetails?: any[];
+  relatedTags?: string[];
+  countryCode?: string;
+  asnOwner?: string;
+  reverseDns?: string;
 }
 
 const STATUS_CONFIG: Record<string, { label: string; badge: string; icon: React.ReactNode }> = {
@@ -83,9 +97,6 @@ function exportCSV(scan: Scan, sources: SourceResult[]) {
 function exportExcel(scan: Scan, sources: SourceResult[]) {
   const wb = XLSX.utils.book_new();
   
-  // Add logo reference as comment (Excel doesn't support images easily with xlsx library)
-  // We'll use cell comments and styling instead
-  
   const summaryRows = [
     ["=".repeat(50)],
     ["TSEDEY BANK - THREAT INTELLIGENCE REPORT"],
@@ -108,15 +119,11 @@ function exportExcel(scan: Scan, sources: SourceResult[]) {
   ];
   
   const ws1 = XLSX.utils.aoa_to_sheet(summaryRows);
-  
-  // Add styling to header (green background for row 2)
   if (ws1['!merges']) ws1['!merges'] = [];
   ws1['!merges'] = [{ s: { r: 1, c: 0 }, e: { r: 1, c: 1 } }];
-  
   ws1["!cols"] = [{ wch: 25 }, { wch: 50 }];
   XLSX.utils.book_append_sheet(wb, ws1, "Tsedey Summary");
   
-  // Sources Sheet with brand name
   const srcRows = [
     ["TSEDEY BANK SOURCE DETAILS"],
     ["=".repeat(60)],
@@ -139,7 +146,6 @@ function exportExcel(scan: Scan, sources: SourceResult[]) {
 function exportPDF(scan: Scan, sources: SourceResult[]) {
   const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
   
-  // Tsedey Bank Header with brand colors
   doc.setFillColor(139, 199, 76);
   doc.rect(0, 0, doc.internal.pageSize.width, 35, "F");
   doc.setTextColor(255, 255, 255);
@@ -161,7 +167,6 @@ function exportPDF(scan: Scan, sources: SourceResult[]) {
   const configured = sources.filter(s => s.status !== "error");
   const errors = sources.filter(s => s.status === "error");
   
-  // Use autoTable with safe options
   (autoTable as any)(doc, {
     head: [["Source", "Category", "Status", "Detections", "Details"]],
     body: configured.map(s => [
@@ -169,7 +174,7 @@ function exportPDF(scan: Scan, sources: SourceResult[]) {
       s.category ?? "",
       s.status.toUpperCase(),
       s.detections !== undefined ? `${s.detections}${s.totalEngines ? `/${s.totalEngines}` : ""}` : "-",
-      (s.details ?? "").replace(" (simulated - add API key in settings)", "").substring(0, 100),
+      (s.details ?? "").substring(0, 100),
     ]),
     startY: 68,
     styles: { fontSize: 7, cellPadding: 2, overflow: "linebreak" },
@@ -203,11 +208,33 @@ function exportPDF(scan: Scan, sources: SourceResult[]) {
   
   doc.save(`tsedey-threat-scan-${slugify(scan.indicatorValue)}.pdf`);
 }
+
 function SourceRow({ source }: { source: SourceResult }) {
   const [expanded, setExpanded] = useState(false);
   const cfg = STATUS_CONFIG[source.status] ?? STATUS_CONFIG.unknown;
   const isError = source.status === "error";
-  const hasRichData = source.isp || source.asn || source.location || source.reports || source.confidence || source.usageType || source.domain;
+  const isVirusTotal = source.name === "VirusTotal";
+  const isAbuseIPDB = source.name === "AbuseIPDB";
+  const isAlienVault = source.name === "AlienVault OTX";
+  
+  const maliciousEngines = source.maliciousEngines || [];
+  const suspiciousEngines = source.suspiciousEngines || [];
+  
+  let vtDetails: any = null;
+  if (isVirusTotal && source.details) {
+    const match = source.details.match(/(\d+) malicious, (\d+) suspicious out of (\d+) engines/);
+    if (match) {
+      vtDetails = {
+        malicious: parseInt(match[1]),
+        suspicious: parseInt(match[2]),
+        total: parseInt(match[3]),
+        clean: parseInt(match[3]) - parseInt(match[1]) - parseInt(match[2])
+      };
+    }
+  }
+
+  // Always show expand button for all platforms (except errors)
+  const showExpandButton = !isError && (source.details || isVirusTotal || maliciousEngines.length > 0 || isAbuseIPDB || isAlienVault);
 
   return (
     <React.Fragment key={source.name}>
@@ -228,8 +255,10 @@ function SourceRow({ source }: { source: SourceResult }) {
             <span className={source.detections > 0 ? "text-red-500 font-semibold" : "text-[#8bc74c]"}>
               {source.detections} / {source.totalEngines}
             </span>
-          ) : !isError && source.reports ? (
-            <span className="text-red-500 font-semibold">{source.reports.toLocaleString()} reports</span>
+          ) : !isError && source.reports !== undefined ? (
+            <span className={source.reports > 0 ? "text-red-500 font-semibold" : "text-[#8bc74c]"}>
+              {source.reports.toLocaleString()} reports
+            </span>
           ) : (
             <span className="text-muted-foreground/40">-</span>
           )}
@@ -241,7 +270,7 @@ function SourceRow({ source }: { source: SourceResult }) {
                 View <ExternalLink className="w-3 h-3" />
               </a>
             )}
-            {(source.details || hasRichData) && !isError && (
+            {showExpandButton && (
               <button onClick={() => setExpanded(e => !e)} className="text-muted-foreground hover:text-[#8bc74c] transition-colors p-0.5">
                 {expanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
               </button>
@@ -252,75 +281,222 @@ function SourceRow({ source }: { source: SourceResult }) {
       {expanded && !isError && (
         <tr className="border-b border-border/20 bg-muted/10">
           <td colSpan={4} className="px-4 py-3">
-            <div className="space-y-2">
-              {/* Rich Data Display - Grid layout for detailed info */}
-              {(source.isp || source.asn || source.location || source.country || source.city || source.confidence !== undefined || source.reports || source.usageType || source.domain) && (
-                <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
-                  {source.isp && (
-                    <>
-                      <span className="font-mono text-muted-foreground">ISP:</span>
-                      <span className="font-mono text-foreground font-medium">{source.isp}</span>
-                    </>
-                  )}
-                  {source.asn && (
-                    <>
-                      <span className="font-mono text-muted-foreground">ASN:</span>
-                      <span className="font-mono text-foreground font-medium">{source.asn}</span>
-                    </>
-                  )}
-                  {source.location && (
-                    <>
-                      <span className="font-mono text-muted-foreground">Location:</span>
-                      <span className="font-mono text-foreground font-medium">{source.location}</span>
-                    </>
-                  )}
-                  {source.country && (
-                    <>
-                      <span className="font-mono text-muted-foreground">Country:</span>
-                      <span className="font-mono text-foreground font-medium">{source.country}</span>
-                    </>
-                  )}
-                  {source.city && (
-                    <>
-                      <span className="font-mono text-muted-foreground">City:</span>
-                      <span className="font-mono text-foreground font-medium">{source.city}</span>
-                    </>
-                  )}
-                  {source.confidence !== undefined && (
-                    <>
-                      <span className="font-mono text-muted-foreground">Confidence:</span>
-                      <span className={`font-mono font-bold ${source.confidence > 50 ? "text-red-500" : source.confidence > 20 ? "text-yellow-500" : "text-green-500"}`}>
-                        {source.confidence}%
-                      </span>
-                    </>
-                  )}
-                  {source.reports && (
-                    <>
-                      <span className="font-mono text-muted-foreground">Total Reports:</span>
-                      <span className="font-mono font-bold text-red-500">{source.reports.toLocaleString()}</span>
-                    </>
-                  )}
-                  {source.usageType && source.usageType !== "Unknown" && (
-                    <>
-                      <span className="font-mono text-muted-foreground">Usage Type:</span>
-                      <span className="font-mono text-foreground font-medium">{source.usageType}</span>
-                    </>
-                  )}
-                  {source.domain && source.domain !== "Unknown" && (
-                    <>
-                      <span className="font-mono text-muted-foreground">Domain:</span>
-                      <span className="font-mono text-foreground font-medium">{source.domain}</span>
-                    </>
+            <div className="space-y-3">
+              {/* VirusTotal Detailed View */}
+              {isVirusTotal && vtDetails && (
+                <div className="bg-red-50 dark:bg-red-950/30 rounded-lg p-4 border border-red-200 dark:border-red-800">
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                    <span className="text-xs font-mono font-bold text-red-600 dark:text-red-400 uppercase tracking-wider">
+                      VirusTotal Detection Breakdown
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-4 gap-2 mb-4">
+                    <div className="text-center p-2 bg-red-100 dark:bg-red-900/30 rounded-lg">
+                      <div className="text-2xl font-bold text-red-600 dark:text-red-400">{vtDetails.malicious}</div>
+                      <div className="text-[10px] font-mono text-red-500/70">MALICIOUS</div>
+                    </div>
+                    <div className="text-center p-2 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg">
+                      <div className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">{vtDetails.suspicious}</div>
+                      <div className="text-[10px] font-mono text-yellow-500/70">SUSPICIOUS</div>
+                    </div>
+                    <div className="text-center p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
+                      <div className="text-2xl font-bold text-green-600 dark:text-green-400">{vtDetails.clean}</div>
+                      <div className="text-[10px] font-mono text-green-500/70">CLEAN</div>
+                    </div>
+                    <div className="text-center p-2 bg-gray-100 dark:bg-gray-800 rounded-lg">
+                      <div className="text-2xl font-bold text-gray-600 dark:text-gray-400">{vtDetails.total}</div>
+                      <div className="text-[10px] font-mono text-gray-500/70">TOTAL</div>
+                    </div>
+                  </div>
+                  {maliciousEngines.length > 0 && (
+                    <div className="mb-3">
+                      <div className="flex items-center gap-2 mb-2">
+                        <ShieldAlert className="w-3.5 h-3.5 text-red-500" />
+                        <span className="text-[10px] font-mono font-bold text-red-600 dark:text-red-400 uppercase tracking-wider">
+                          Detected by ({maliciousEngines.length} engines)
+                        </span>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {maliciousEngines.slice(0, 15).map((engine: string, idx: number) => (
+                          <Badge key={idx} variant="outline" className="bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 border-red-300 dark:border-red-700 text-[9px]">
+                            {engine}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
                   )}
                 </div>
               )}
               
-              {/* Description/Details section */}
-              {source.details && (
-                <div className="mt-2 pt-2 border-t border-border/30">
-                  <p className="text-xs font-mono text-muted-foreground leading-relaxed break-words">
+              {/* AbuseIPDB Detailed View */}
+              {isAbuseIPDB && (
+                <div className="bg-gradient-to-br from-orange-50 to-red-50 dark:from-orange-950/30 dark:to-red-950/30 rounded-xl p-5 border border-orange-200 dark:border-orange-800 shadow-lg">
+                  <div className="flex items-center gap-3 mb-4 pb-2 border-b border-orange-200 dark:border-orange-800">
+                    <div className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
+                    <Shield className="w-4 h-4 text-orange-500" />
+                    <span className="text-xs font-mono font-bold text-orange-600 dark:text-orange-400 uppercase tracking-wider">
+                      AbuseIPDB Intelligence Report
+                    </span>
+                    <Badge className={`ml-auto ${source.status === "malicious" ? "bg-red-500/20 text-red-500 border-red-500/30" : "bg-orange-500/20 text-orange-500 border-orange-500/30"}`}>
+                      {source.status === "malicious" ? "Malicious" : source.status === "suspicious" ? "Suspicious" : "Clean"}
+                    </Badge>
+                  </div>
+                  
+                  <div className="mb-5">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider">Abuse Confidence Score</span>
+                      <span className="text-xl font-bold font-mono text-orange-600 dark:text-orange-400">{source.confidence || source.detections || 0}%</span>
+                    </div>
+                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3 overflow-hidden">
+                      <div className="h-full bg-gradient-to-r from-orange-400 to-red-500 rounded-full transition-all duration-500" style={{ width: `${source.confidence || source.detections || 0}%` }} />
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                    <div className="bg-white/50 dark:bg-black/20 rounded-lg p-2 text-center border border-orange-100 dark:border-orange-800/50">
+                      <ShieldAlert className="w-4 h-4 text-red-500 mx-auto mb-1" />
+                      <div className="text-xl font-bold text-red-600 dark:text-red-400">{source.reports?.toLocaleString() || 0}</div>
+                      <div className="text-[9px] font-mono text-muted-foreground">Total Reports</div>
+                    </div>
+                    <div className="bg-white/50 dark:bg-black/20 rounded-lg p-2 text-center border border-orange-100 dark:border-orange-800/50">
+                      <Building2 className="w-4 h-4 text-blue-500 mx-auto mb-1" />
+                      <div className="text-xs font-mono text-foreground truncate">{source.usageType || "N/A"}</div>
+                      <div className="text-[9px] font-mono text-muted-foreground">Usage Type</div>
+                    </div>
+                    <div className="bg-white/50 dark:bg-black/20 rounded-lg p-2 text-center border border-orange-100 dark:border-orange-800/50">
+                      <Server className="w-4 h-4 text-green-500 mx-auto mb-1" />
+                      <div className="text-xs font-mono text-foreground truncate">{source.isp || "N/A"}</div>
+                      <div className="text-[9px] font-mono text-muted-foreground">ISP</div>
+                    </div>
+                    <div className="bg-white/50 dark:bg-black/20 rounded-lg p-2 text-center border border-orange-100 dark:border-orange-800/50">
+                      <Network className="w-4 h-4 text-purple-500 mx-auto mb-1" />
+                      <div className="text-xs font-mono text-foreground truncate">{source.asn || "N/A"}</div>
+                      <div className="text-[9px] font-mono text-muted-foreground">ASN</div>
+                    </div>
+                  </div>
+                  
+                  {(source.country || source.city || source.location) && (
+                    <div className="mb-3 p-3 bg-white/50 dark:bg-black/20 rounded-lg border border-orange-100 dark:border-orange-800/50">
+                      <div className="flex items-center gap-2 mb-2">
+                        <MapPin className="w-3.5 h-3.5 text-orange-500" />
+                        <span className="text-[10px] font-mono font-bold text-orange-600 dark:text-orange-400 uppercase tracking-wider">Location Details</span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div><span className="text-muted-foreground">Country:</span> <span className="font-mono">{source.country || "N/A"}</span></div>
+                        <div><span className="text-muted-foreground">City:</span> <span className="font-mono">{source.city || "N/A"}</span></div>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {(source.hostname || source.domain) && (
+                    <div className="mb-3 p-3 bg-white/50 dark:bg-black/20 rounded-lg border border-orange-100 dark:border-orange-800/50">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Globe className="w-3.5 h-3显示 text-blue-500" />
+                        <span className="text-[10px] font-mono font-bold text-orange-600 dark:text-orange-400 uppercase tracking-wider">Network Details</span>
+                      </div>
+                      {source.hostname && <div className="text-xs mb-1"><span className="text-muted-foreground">Hostname:</span> <span className="font-mono">{source.hostname}</span></div>}
+                      {source.domain && <div className="text-xs"><span className="text-muted-foreground">Domain:</span> <span className="font-mono">{source.domain}</span></div>}
+                    </div>
+                  )}
+                  
+                  <div className="text-xs font-mono text-gray-600 dark:text-gray-400 leading-relaxed bg-black/5 dark:bg-white/5 p-3 rounded-lg">
                     {source.details}
-                  </p>
+                  </div>
+                </div>
+              )}
+              
+              {/* AlienVault OTX Detailed View */}
+              {isAlienVault && source.pulseDetails && source.pulseDetails.length > 0 && (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <div className="bg-purple-50 dark:bg-purple-950/30 rounded-lg p-3 text-center border border-purple-200 dark:border-purple-800">
+                      <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">{source.detections || 0}</div>
+                      <div className="text-[9px] font-mono text-muted-foreground">Total Pulses</div>
+                    </div>
+                    <div className="bg-blue-50 dark:bg-blue-950/30 rounded-lg p-3 text-center border border-blue-200 dark:border-blue-800">
+                      <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{source.relatedTags?.length || 0}</div>
+                      <div className="text-[9px] font-mono text-muted-foreground">Related Tags</div>
+                    </div>
+                    <div className="bg-green-50 dark:bg-green-950/30 rounded-lg p-3 text-center border border-green-200 dark:border-green-800">
+                      <div className="text-2xl font-bold text-green-600 dark:text-green-400">{source.pulseDetails?.length || 0}</div>
+                      <div className="text-[9px] font-mono text-muted-foreground">Recent Pulses</div>
+                    </div>
+                    <div className="bg-cyan-50 dark:bg-cyan-950/30 rounded-lg p-3 text-center border border-cyan-200 dark:border-cyan-800">
+                      <div className="text-2xl font-bold text-cyan-600 dark:text-cyan-400">{source.pulseCount || 0}</div>
+                      <div className="text-[9px] font-mono text-muted-foreground">Active Pulses</div>
+                    </div>
+                  </div>
+                  
+                  {(source.countryCode || source.asn || source.reverseDns) && (
+                    <div className="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-3 border border-gray-200 dark:border-gray-700">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Globe className="w-3.5 h-3.5 text-blue-500" />
+                        <span className="text-[10px] font-mono font-bold uppercase tracking-wider">Location & Network</span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        {source.countryCode && <div><span className="text-muted-foreground">Country:</span> {source.countryCode}</div>}
+                        {source.asn && <div><span className="text-muted-foreground">ASN:</span> {source.asn}</div>}
+                        {source.asnOwner && <div className="col-span-2"><span className="text-muted-foreground">AS Owner:</span> {source.asnOwner}</div>}
+                        {source.reverseDns && <div className="col-span-2"><span className="text-muted-foreground">Reverse DNS:</span> <span className="font-mono text-[10px]">{source.reverseDns}</span></div>}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {source.relatedTags && source.relatedTags.length > 0 && (
+                    <div className="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-3 border border-gray-200 dark:border-gray-700">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="text-[10px] font-mono font-bold uppercase tracking-wider">Related Tags</span>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {source.relatedTags.slice(0, 20).map((tag: string, idx: number) => (
+                          <Badge key={idx} variant="outline" className="bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 border-purple-300 dark:border-purple-700 text-[9px]">
+                            {tag}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {source.pulseDetails && source.pulseDetails.length > 0 && (
+                    <div className="space-y-2">
+                      <details className="group">
+                        <summary className="cursor-pointer text-[10px] font-mono font-bold uppercase tracking-wider text-purple-600 dark:text-purple-400">
+                          📡 Recent Pulses ({source.pulseDetails.length} of {source.detections})
+                        </summary>
+                        <div className="mt-3 space-y-2 max-h-64 overflow-y-auto">
+                          {source.pulseDetails.map((pulse: any, idx: number) => (
+                            <div key={idx} className="bg-purple-50 dark:bg-purple-950/20 rounded-lg p-3 border border-purple-200 dark:border-purple-800">
+                              <div className="flex items-start justify-between gap-2 flex-wrap mb-1">
+                                <span className="text-xs font-mono font-bold text-purple-700 dark:text-purple-300">{pulse.name}</span>
+                                <Badge variant="outline" className="text-[8px]">{pulse.tlp || "Green"}</Badge>
+                              </div>
+                              <div className="text-[10px] text-muted-foreground mb-1">Author: {pulse.author}</div>
+                              {pulse.description && (
+                                <div className="text-[10px] text-muted-foreground mb-2 line-clamp-2">{pulse.description}</div>
+                              )}
+                              {pulse.tags && pulse.tags.length > 0 && (
+                                <div className="flex flex-wrap gap-1 mt-1">
+                                  {pulse.tags.slice(0, 5).map((tag: string, tidx: number) => (
+                                    <Badge key={tidx} variant="outline" className="text-[8px] bg-purple-100 dark:bg-purple-900/30">
+                                      {tag}
+                                    </Badge>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </details>
+                    </div>
+                  )}
+                </div>
+              )}
+              
+              {/* Generic Details for other sources */}
+              {!isVirusTotal && !isAbuseIPDB && !isAlienVault && source.details && (
+                <div className="text-xs font-mono text-gray-600 dark:text-gray-400 leading-relaxed bg-gray-50 dark:bg-gray-900/50 p-3 rounded-lg">
+                  {source.details}
                 </div>
               )}
             </div>
@@ -338,26 +514,48 @@ export default function Lookup() {
   const [aiAnalysis, setAiAnalysis] = useState<string | null>(null);
   const [isAiAnalyzing, setIsAiAnalyzing] = useState(false);
   
-  const createScan = useCreateScan({ mutation: { onSuccess: (data) => setScanResult(data) } });
+  const createScan = useCreateScan({ 
+    mutation: { 
+      onSuccess: (data) => {
+        console.log("✅ SCAN COMPLETE - Full Response from Backend:");
+        console.log("📊 RISK INFO:", {
+          riskScore: data.riskScore,
+          riskLevel: data.riskLevel,
+          indicatorValue: data.indicatorValue,
+          indicatorType: data.indicatorType
+        });
+        console.log("🔍 ALL PLATFORM RESULTS (JSON):");
+        console.log(JSON.stringify(data.sources, null, 2));
+        setScanResult(data);
+      },
+      onError: (error) => {
+        console.error("❌ Scan failed:", error);
+      }
+    } 
+  });
 
   const handleLookup = (e: React.FormEvent) => {
     e.preventDefault();
     if (!indicatorValue.trim()) return;
+    console.log(`🔍 Starting threat lookup for: ${indicatorValue} (${indicatorType})`);
     setScanResult(null);
     setAiAnalysis(null);
     createScan.mutate({ data: { indicatorType, indicatorValue: indicatorValue.trim() } });
   };
 
   const sources: SourceResult[] = (scanResult?.sources as SourceResult[] | undefined) ?? [];
-  const activeSources = sources.filter(s => s.status !== "error");
-  const errorSources = sources.filter(s => s.status === "error");
-  const maliciousCount = activeSources.filter(s => s.status === "malicious").length;
-  const suspiciousCount = activeSources.filter(s => s.status === "suspicious").length;
-  const cleanCount = activeSources.filter(s => s.status === "clean").length;
+  // Show ALL sources - don't filter anything
+  const allSources = sources;
+  const errorSources = allSources.filter(s => s.status === "error");
+  const maliciousCount = allSources.filter(s => s.status === "malicious").length;
+  const suspiciousCount = allSources.filter(s => s.status === "suspicious").length;
+  const cleanCount = allSources.filter(s => s.status === "clean").length;
 
-  const byCategory = activeSources.reduce<Record<string, SourceResult[]>>((acc, s) => {
+  // Group ALL sources by category (including errors)
+  const byCategory = allSources.reduce<Record<string, SourceResult[]>>((acc, s) => {
     const cat = s.category ?? "Other";
-    (acc[cat] ??= []).push(s);
+    if (!acc[cat]) acc[cat] = [];
+    acc[cat].push(s);
     return acc;
   }, {});
 
@@ -401,12 +599,6 @@ export default function Lookup() {
       getAiAnalysis(scanResult, sources);
     }
   }, [scanResult, sources]);
-
-  const byUnconfigured = errorSources.reduce<Record<string, SourceResult[]>>((acc, s) => {
-    const cat = s.category ?? "Other";
-    (acc[cat] ??= []).push(s);
-    return acc;
-  }, {});
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -480,7 +672,7 @@ export default function Lookup() {
                 <CardContent className="py-3 px-4">
                   <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
                     <p className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
-                      Detection Consensus ({activeSources.length} active sources)
+                      Detection Consensus ({allSources.length} total sources)
                       {isAiAnalyzing && <Loader2 className="w-3 h-3 inline ml-2 animate-spin text-[#8bc74c]" />}
                     </p>
                     <div className="flex items-center gap-1.5">
@@ -502,11 +694,11 @@ export default function Lookup() {
                     </div>
                   )}
                   
-                  {activeSources.length > 0 ? (
+                  {allSources.length > 0 ? (
                     <div className="flex h-3 rounded-full overflow-hidden gap-px">
-                      {maliciousCount > 0 && <div className="bg-red-500 transition-all" style={{ width: `${(maliciousCount / activeSources.length) * 100}%` }} />}
-                      {suspiciousCount > 0 && <div className="bg-yellow-500 transition-all" style={{ width: `${(suspiciousCount / activeSources.length) * 100}%` }} />}
-                      {cleanCount > 0 && <div className="bg-[#8bc74c] transition-all" style={{ width: `${(cleanCount / activeSources.length) * 100}%` }} />}
+                      {maliciousCount > 0 && <div className="bg-red-500 transition-all" style={{ width: `${(maliciousCount / allSources.length) * 100}%` }} />}
+                      {suspiciousCount > 0 && <div className="bg-yellow-500 transition-all" style={{ width: `${(suspiciousCount / allSources.length) * 100}%` }} />}
+                      {cleanCount > 0 && <div className="bg-[#8bc74c] transition-all" style={{ width: `${(cleanCount / allSources.length) * 100}%` }} />}
                     </div>
                   ) : <div className="h-3 rounded-full bg-muted/30" />}
                   <div className="flex gap-4 mt-2">
@@ -529,7 +721,7 @@ export default function Lookup() {
             </Card>
           )}
 
-          {/* Active source tables by category */}
+          {/* Active source tables by category - NOW SHOWING ALL SOURCES */}
           {Object.entries(byCategory).map(([category, catSources]) => (
             <Card key={category} className="bg-gradient-to-br from-card/80 to-card/40 border-none shadow-lg overflow-hidden">
               <div className="h-1 bg-gradient-to-r from-[#8bc74c] via-[#1bb7b6] to-[#c6cc3b]" />
@@ -558,9 +750,7 @@ export default function Lookup() {
         </div>
       )}
 
-      {/* AI Assistant - Floating chat button */}
       <AIAssistant indicatorValue={indicatorValue} indicatorType={indicatorType} scanResults={scanResult} />
     </div>
   );
 }
-

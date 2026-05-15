@@ -1,4 +1,46 @@
-﻿export interface ScanSourceResult {
+﻿import fs from "fs";
+import path from "path";
+
+const SCAN_LOG_FILE = path.join(process.cwd(), "scan-results-log.json");
+
+function logToConsole(platformName: string, requestData: any, responseData: any, error?: any) {
+  console.log("\n" + "=".repeat(80));
+  console.log(`🔍 ${platformName} - ${new Date().toISOString()}`);
+  console.log("=".repeat(80));
+  if (requestData) {
+    console.log("📤 REQUEST:");
+    console.log(JSON.stringify(requestData, null, 2));
+  }
+  if (error) {
+    console.log("❌ ERROR:");
+    console.log(JSON.stringify({ message: error.message, stack: error.stack }, null, 2));
+  } else if (responseData) {
+    console.log("📥 RESPONSE (FULL JSON):");
+    console.log(JSON.stringify(responseData, null, 2));
+  }
+  console.log("=".repeat(80) + "\n");
+}
+
+function appendToScanLog(indicatorType: string, indicatorValue: string, platformName: string, result: any) {
+  try {
+    let existingLogs: any[] = [];
+    if (fs.existsSync(SCAN_LOG_FILE)) {
+      existingLogs = JSON.parse(fs.readFileSync(SCAN_LOG_FILE, "utf-8"));
+    }
+    existingLogs.push({
+      timestamp: new Date().toISOString(),
+      indicatorType,
+      indicatorValue,
+      platform: platformName,
+      result
+    });
+    fs.writeFileSync(SCAN_LOG_FILE, JSON.stringify(existingLogs, null, 2));
+  } catch (err) {
+    console.error("Failed to write to scan log:", err);
+  }
+}
+
+export interface ScanSourceResult {
   name: string;
   status: "clean" | "malicious" | "suspicious" | "unknown" | "error";
   detections?: number;
@@ -6,7 +48,6 @@
   details?: string;
   url?: string;
   category?: string;
-  // New detailed fields
   isp?: string;
   asn?: string;
   location?: string;
@@ -16,6 +57,13 @@
   domain?: string;
   country?: string;
   city?: string;
+  hostname?: string;
+  maliciousEngines?: string[];
+  suspiciousEngines?: string[];
+  cleanEngines?: string[];
+  unratedEngines?: string[];
+  lastAnalysisDate?: string;
+  asOwner?: string;
 }
 
 function notConfigured(name: string, url: string, category?: string): ScanSourceResult {
@@ -34,110 +82,6 @@ function rateLimited(name: string, url: string, category?: string): ScanSourceRe
   };
 }
 
-// VirusTotal checker
-async function checkVirusTotal(type: string, value: string, apiKey?: string): Promise<ScanSourceResult> {
-  const name = "VirusTotal";
-  const category = "Multi-Engine Scanner";
-  const vtUrl = `https://www.virustotal.com/gui/search/${encodeURIComponent(value)}`;
-
-  if (!apiKey) return notConfigured(name, vtUrl, category);
-
-  try {
-    const endpoint =
-      type === "ip" ? `https://www.virustotal.com/api/v3/ip_addresses/${encodeURIComponent(value)}`
-      : type === "hash" ? `https://www.virustotal.com/api/v3/files/${encodeURIComponent(value)}`
-      : `https://www.virustotal.com/api/v3/domains/${encodeURIComponent(value)}`;
-
-    const resp = await fetch(endpoint, { headers: { "x-apikey": apiKey } });
-
-    if (resp.status === 429) return rateLimited(name, vtUrl, category);
-    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-
-    const data = (await resp.json()) as any;
-    const stats = data.data.attributes.last_analysis_stats;
-    const mal = stats.malicious ?? 0;
-    const sus = stats.suspicious ?? 0;
-    const total = mal + sus + (stats.undetected ?? 0) + (stats.harmless ?? 0);
-
-    return {
-      name, category,
-      status: mal > 0 ? "malicious" : sus > 0 ? "suspicious" : "clean",
-      detections: mal + sus, totalEngines: total,
-      details: `${mal} malicious, ${sus} suspicious out of ${total} engines`,
-      url: vtUrl,
-    };
-  } catch (e: any) {
-    return { name, category, status: "error", details: `Error: ${e.message}`, url: vtUrl };
-  }
-}
-
-// AbuseIPDB checker
-async function checkAbuseIPDB(value: string, apiKey?: string): Promise<ScanSourceResult> {
-  const name = "AbuseIPDB";
-  const category = "IP Reputation";
-  const baseUrl = `https://www.abuseipdb.com/check/${encodeURIComponent(value)}`;
-
-  if (!apiKey) return notConfigured(name, baseUrl, category);
-
-  try {
-    const resp = await fetch(
-      `https://api.abuseipdb.com/api/v2/check?ipAddress=${encodeURIComponent(value)}&maxAgeInDays=90`,
-      { headers: { Key: apiKey, Accept: "application/json" } }
-    );
-
-    if (resp.status === 429) return rateLimited(name, baseUrl, category);
-    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-
-    const data = (await resp.json()) as any;
-    const score = data.data.abuseConfidenceScore;
-    const reports = data.data.totalReports;
-
-    return {
-      name, category,
-      status: score > 50 ? "malicious" : score > 20 ? "suspicious" : "clean",
-      detections: reports,
-      details: `Abuse confidence: ${score}%, ${reports} total reports, ISP: ${data.data.isp ?? "unknown"}`,
-      url: baseUrl,
-    };
-  } catch (e: any) {
-    return { name, category, status: "error", details: `Error: ${e.message}`, url: baseUrl };
-  }
-}
-
-// AlienVault OTX checker
-async function checkAlienVaultOTX(type: string, value: string, apiKey?: string): Promise<ScanSourceResult> {
-  const name = "AlienVault OTX";
-  const category = "Threat Intelligence";
-  const otxUrl = "https://otx.alienvault.com/browse/global/indicators";
-
-  if (!apiKey) return notConfigured(name, otxUrl, category);
-
-  try {
-    const typeMap: Record<string, string> = { ip: "IPv4", url: "URL", domain: "domain", hash: "file" };
-    const resp = await fetch(
-      `https://otx.alienvault.com/api/v1/indicators/${typeMap[type] ?? "domain"}/${encodeURIComponent(value)}/general`,
-      { headers: { "X-OTX-API-KEY": apiKey } }
-    );
-
-    if (resp.status === 429) return rateLimited(name, otxUrl, category);
-    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-
-    const data = (await resp.json()) as any;
-    const pulses = data.pulse_info?.count ?? 0;
-
-    return {
-      name, category,
-      status: pulses > 5 ? "malicious" : pulses > 0 ? "suspicious" : "clean",
-      detections: pulses,
-      details: `Found in ${pulses} OTX threat pulses${pulses > 0 ? " — indicator is actively tracked" : ""}`,
-      url: otxUrl,
-    };
-  } catch (e: any) {
-    return { name, category, status: "error", details: `Error: ${e.message}`, url: otxUrl };
-  }
-}
-
-// Helper to create a configured result for platforms without full API integration
 function configuredResult(name: string, category: string, url: string): ScanSourceResult {
   return {
     name,
@@ -147,41 +91,223 @@ function configuredResult(name: string, category: string, url: string): ScanSour
     url: url,
   };
 }
-// ThreatFox API checker
+
+// ============================================
+// VIRUSTOTAL
+// ============================================
+async function checkVirusTotal(type: string, value: string, apiKey?: string): Promise<ScanSourceResult> {
+  const name = "VirusTotal";
+  const category = "Multi-Engine Scanner";
+  const vtUrl = `https://www.virustotal.com/gui/search/${encodeURIComponent(value)}`;
+
+  if (!apiKey) {
+    const result = notConfigured(name, vtUrl, category);
+    logToConsole(name, { type, value, hasApiKey: false }, result);
+    return result;
+  }
+
+  try {
+    const endpoint = type === "ip" ? `https://www.virustotal.com/api/v3/ip_addresses/${encodeURIComponent(value)}`
+      : type === "hash" ? `https://www.virustotal.com/api/v3/files/${encodeURIComponent(value)}`
+      : `https://www.virustotal.com/api/v3/domains/${encodeURIComponent(value)}`;
+
+    const resp = await fetch(endpoint, { headers: { "x-apikey": apiKey } });
+
+    if (resp.status === 429) {
+      const result = rateLimited(name, vtUrl, category);
+      logToConsole(name, { endpoint }, { status: 429 });
+      return result;
+    }
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+
+    const data: any = await resp.json();
+    const stats = data.data.attributes.last_analysis_stats;
+    const mal = stats.malicious ?? 0;
+    const sus = stats.suspicious ?? 0;
+    const total = mal + sus + (stats.undetected ?? 0) + (stats.harmless ?? 0);
+
+    const maliciousEngines: string[] = [];
+    const suspiciousEngines: string[] = [];
+    
+    if (data.data.attributes.last_analysis_results) {
+      const results = data.data.attributes.last_analysis_results;
+      for (const [engine, info] of Object.entries(results) as any) {
+        if (info.category === "malicious") maliciousEngines.push(engine);
+        else if (info.category === "suspicious") suspiciousEngines.push(engine);
+      }
+    }
+
+    const result: ScanSourceResult = {
+      name, category,
+      status: mal > 0 ? "malicious" : sus > 0 ? "suspicious" : "clean",
+      detections: mal + sus, totalEngines: total,
+      details: `${mal} malicious, ${sus} suspicious out of ${total} engines`,
+      url: vtUrl,
+      maliciousEngines: mal > 0 ? maliciousEngines.slice(0, 20) : undefined,
+      suspiciousEngines: sus > 0 ? suspiciousEngines.slice(0, 20) : undefined,
+    };
+
+    logToConsole(name, { type, value }, { stats });
+    appendToScanLog(type, value, name, { status: result.status, mal, sus });
+    return result;
+  } catch (e: any) {
+    const result = { name, category, status: "error" as const, details: `Error: ${e.message}`, url: vtUrl };
+    logToConsole(name, { type, value }, null, e);
+    return result;
+  }
+}
+
+// ============================================
+// ABUSEIPDB
+// ============================================
+async function checkAbuseIPDB(value: string, apiKey?: string): Promise<ScanSourceResult> {
+  const name = "AbuseIPDB";
+  const category = "IP Reputation";
+  const baseUrl = `https://www.abuseipdb.com/check/${encodeURIComponent(value)}`;
+
+  if (!apiKey) {
+    return notConfigured(name, baseUrl, category);
+  }
+
+  try {
+    const url = `https://api.abuseipdb.com/api/v2/check?ipAddress=${encodeURIComponent(value)}&maxAgeInDays=365`;
+    const resp = await fetch(url, { headers: { Key: apiKey, Accept: "application/json" } });
+
+    if (resp.status === 429) return rateLimited(name, baseUrl, category);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+
+    const data: any = await resp.json();
+    const abuseData = data.data;
+    const score = abuseData.abuseConfidenceScore;
+    const reports = abuseData.totalReports;
+    
+    const isp = abuseData.isp || "";
+    const asn = abuseData.asn || "";
+    const country = abuseData.countryCode || abuseData.countryName || "";
+    const city = abuseData.city || "";
+    const usageType = abuseData.usageType || "";
+    const domain = abuseData.domain || "";
+    const hostname = abuseData.hostname || "";
+    const countryName = abuseData.countryName || "";
+    
+    const detailsParts = [
+      `Abuse confidence: ${score}%`,
+      `${reports} total reports`,
+      isp ? `ISP: ${isp}` : "",
+      asn ? `ASN: ${asn}` : "",
+      usageType ? `Usage: ${usageType}` : "",
+      countryName ? `Location: ${countryName}` : "",
+      hostname ? `Hostname: ${hostname}` : "",
+      domain ? `Domain: ${domain}` : ""
+    ].filter(p => p);
+    
+    const details = detailsParts.join(" | ");
+    
+    logToConsole(name, { value }, data);
+
+    const result: ScanSourceResult = {
+      name, category,
+      status: score > 50 ? "malicious" : score > 20 ? "suspicious" : "clean",
+      detections: reports,
+      reports: reports,
+      confidence: score,
+      details: details,
+      url: baseUrl,
+      isp: isp || undefined,
+      asn: asn || undefined,
+      country: countryName || country || undefined,
+      city: city || undefined,
+      usageType: usageType || undefined,
+      domain: domain || undefined,
+      hostname: hostname || undefined,
+    };
+    
+    return result;
+  } catch (e: any) {
+    return { name, category, status: "error" as const, details: `Error: ${e.message}`, url: baseUrl };
+  }
+}
+
+// ============================================
+// ALIENVAULT OTX
+// ============================================
+async function checkAlienVaultOTX(type: string, value: string, apiKey?: string): Promise<ScanSourceResult> {
+  const name = "AlienVault OTX";
+  const category = "Threat Intelligence";
+  const otxUrl = "https://otx.alienvault.com/browse/global/indicators";
+
+  if (!apiKey) {
+    return notConfigured(name, otxUrl, category);
+  }
+
+  try {
+    const typeMap: Record<string, string> = { ip: "IPv4", url: "URL", domain: "domain", hash: "file" };
+    const generalUrl = `https://otx.alienvault.com/api/v1/indicators/${typeMap[type] ?? "domain"}/${encodeURIComponent(value)}/general`;
+    const resp = await fetch(generalUrl, { headers: { "X-OTX-API-KEY": apiKey } });
+
+    if (resp.status === 429) return rateLimited(name, otxUrl, category);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+
+    const data: any = await resp.json();
+    const pulses = data.pulse_info?.count ?? 0;
+    const pulseList = data.pulse_info?.pulses?.slice(0, 15) || [];
+    
+    const pulseDetails = pulseList.map((pulse: any) => ({
+      id: pulse.id,
+      name: pulse.name,
+      description: pulse.description?.substring(0, 300) || "",
+      author: pulse.author?.username || pulse.author?.name || "Unknown",
+      tags: pulse.tags?.slice(0, 10) || [],
+      tlp: pulse.tlp || "Green",
+    }));
+    
+    const allTags = pulseList.flatMap((pulse: any) => pulse.tags || []);
+    const uniqueTags = [...new Set(allTags)].slice(0, 20);
+    
+    const result: any = {
+      name, category,
+      status: pulses > 5 ? "malicious" : pulses > 0 ? "suspicious" : "clean",
+      detections: pulses,
+      reports: pulses,
+      details: `Found in ${pulses} OTX threat pulses`,
+      url: `https://otx.alienvault.com/indicator/${typeMap[type]}/${encodeURIComponent(value)}`,
+      pulseCount: pulses,
+      pulseDetails: pulseDetails,
+      relatedTags: uniqueTags,
+    };
+    
+    return result;
+  } catch (e: any) {
+    return { name, category, status: "error" as const, details: `Error: ${e.message}`, url: otxUrl };
+  }
+}
+
+// ============================================
+// THREATFOX
+// ============================================
 async function checkThreatFox(value: string, indicatorType: string, apiKey?: string): Promise<ScanSourceResult> {
   const name = "ThreatFox";
   const category = "IOC Database";
   const tfUrl = `https://threatfox.abuse.ch/browse/`;
 
-  if (!apiKey) return notConfigured(name, tfUrl, category);
+  if (!apiKey) {
+    return notConfigured(name, tfUrl, category);
+  }
 
   try {
-    // Determine search term based on indicator type
-    let searchTerm = value;
-    
-    // For IP addresses, ThreatFox can search directly
-    const requestBody = {
-      query: "search_ioc",
-      search_term: value,
-      exact_match: true
-    };
-
     const resp = await fetch("https://threatfox-api.abuse.ch/api/v1/", {
       method: "POST",
-      headers: { 
-        "Auth-Key": apiKey,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify(requestBody)
+      headers: { "Auth-Key": apiKey, "Content-Type": "application/json" },
+      body: JSON.stringify({ query: "search_ioc", search_term: value, exact_match: true })
     });
 
     if (resp.status === 429) return rateLimited(name, tfUrl, category);
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
 
-    const data = (await resp.json()) as any;
-    
+    const data: any = await resp.json();
+    logToConsole(name, { value }, data);
+
     if (data.query_status === "ok" && data.data && data.data.length > 0) {
-      // IOC found in ThreatFox
       const iocData = data.data[0];
       const confidence = iocData.confidence_level || 0;
       const malware = iocData.malware_printable || iocData.malware || "Unknown";
@@ -194,22 +320,485 @@ async function checkThreatFox(value: string, indicatorType: string, apiKey?: str
         name, category,
         status: status,
         detections: 1,
-        details: `Found in ThreatFox database. Malware: ${malware}, Confidence: ${confidence}%${iocData.reference ? `, Reference: ${iocData.reference}` : ""}`,
-        url: `https://threatfox.abuse.ch/browse/`,
-      };
-    } else {
-      return {
-        name, category,
-        status: "clean",
-        details: `No results found in ThreatFox database.`,
+        details: `Found in ThreatFox database. Malware: ${malware}, Confidence: ${confidence}%`,
         url: tfUrl,
       };
     }
+    return { name, category, status: "clean", details: "No results found in ThreatFox database.", url: tfUrl };
   } catch (e: any) {
-    return { name, category, status: "error", details: `Error: ${e.message}`, url: tfUrl };
+    return { name, category, status: "error" as const, details: `Error: ${e.message}`, url: tfUrl };
   }
 }
-// All supported platforms with their API key names
+
+// ============================================
+// GREYNOISE
+// ============================================
+async function checkGreyNoise(value: string, apiKey?: string): Promise<ScanSourceResult> {
+  const name = "GreyNoise";
+  const category = "Internet Noise Analysis";
+  const gnUrl = `https://viz.greynoise.io/ip/${encodeURIComponent(value)}`;
+
+  if (!apiKey) {
+    return notConfigured(name, gnUrl, category);
+  }
+
+  try {
+    const resp = await fetch(`https://api.greynoise.io/v3/community/${encodeURIComponent(value)}`, {
+      headers: { "key": apiKey }
+    });
+
+    if (resp.status === 429) return rateLimited(name, gnUrl, category);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+
+    const data: any = await resp.json();
+    const classification = data.classification || "unknown";
+    const noise = data.noise || false;
+    
+    let status: "clean" | "malicious" | "suspicious" = "clean";
+    if (classification === "malicious") status = "malicious";
+    else if (classification === "suspicious") status = "suspicious";
+    
+    logToConsole(name, { value }, data);
+
+    return {
+      name, category,
+      status: status,
+      details: `GreyNoise: ${classification} | Noise: ${noise}${data.name ? ` | Name: ${data.name}` : ""}`,
+      url: gnUrl,
+    };
+  } catch (e: any) {
+    return { name, category, status: "error" as const, details: `Error: ${e.message}`, url: gnUrl };
+  }
+}
+
+// ============================================
+// SHODAN
+// ============================================
+async function checkShodan(value: string, apiKey?: string): Promise<ScanSourceResult> {
+  const name = "Shodan";
+  const category = "Asset Discovery";
+  const shodanUrl = `https://www.shodan.io/host/${encodeURIComponent(value)}`;
+
+  if (!apiKey) {
+    return notConfigured(name, shodanUrl, category);
+  }
+
+  try {
+    const resp = await fetch(`https://api.shodan.io/shodan/host/${encodeURIComponent(value)}?key=${apiKey}`);
+
+    if (resp.status === 429) return rateLimited(name, shodanUrl, category);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+
+    const data: any = await resp.json();
+    const ports = data.ports?.length || 0;
+    const vulnerabilities = data.vulns ? Object.keys(data.vulns).length : 0;
+    
+    logToConsole(name, { value }, data);
+
+    return {
+      name, category,
+      status: vulnerabilities > 0 ? "suspicious" : "clean",
+      detections: vulnerabilities,
+      details: `${ports} open ports, ${vulnerabilities} vulnerabilities${data.org ? ` | ISP: ${data.org}` : ""}`,
+      url: shodanUrl,
+      isp: data.org,
+      asn: data.asn,
+    };
+  } catch (e: any) {
+    return { name, category, status: "error" as const, details: `Error: ${e.message}`, url: shodanUrl };
+  }
+}
+
+// ============================================
+// CENSYS
+// ============================================
+async function checkCensys(value: string, apiKey?: string): Promise<ScanSourceResult> {
+  const name = "Censys";
+  const category = "Asset Discovery";
+  const censysUrl = `https://search.censys.io/hosts/${encodeURIComponent(value)}`;
+
+  if (!apiKey) {
+    return notConfigured(name, censysUrl, category);
+  }
+
+  try {
+    // Censys v2 API requires different auth
+    const [uid, secret] = (apiKey || ":").split(":");
+    const auth = Buffer.from(`${uid}:${secret}`).toString("base64");
+    
+    const resp = await fetch(`https://search.censys.io/api/v2/hosts/${encodeURIComponent(value)}`, {
+      headers: { "Authorization": `Basic ${auth}` }
+    });
+
+    if (resp.status === 429) return rateLimited(name, censysUrl, category);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+
+    const data: any = await resp.json();
+    const protocols = data.result?.services?.length || 0;
+    const location = data.result?.location?.country || "";
+    
+    logToConsole(name, { value }, data);
+
+    return {
+      name, category,
+      status: "clean",
+      details: `${protocols} services found${location ? ` | Location: ${location}` : ""}`,
+      url: censysUrl,
+      country: location,
+    };
+  } catch (e: any) {
+    return { name, category, status: "error" as const, details: `Error: ${e.message}`, url: censysUrl };
+  }
+}
+
+// ============================================
+// IPINFO
+// ============================================
+async function checkIpInfo(value: string, apiKey?: string): Promise<ScanSourceResult> {
+  const name = "IPinfo";
+  const category = "IP Geolocation";
+  const ipinfoUrl = `https://ipinfo.io/${encodeURIComponent(value)}`;
+
+  if (!apiKey) {
+    return notConfigured(name, ipinfoUrl, category);
+  }
+
+  try {
+    const resp = await fetch(`https://ipinfo.io/${encodeURIComponent(value)}?token=${apiKey}`);
+
+    if (resp.status === 429) return rateLimited(name, ipinfoUrl, category);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+
+    const data: any = await resp.json();
+    
+    logToConsole(name, { value }, data);
+
+    return {
+      name, category,
+      status: "clean",
+      details: `Location: ${data.city}, ${data.country} | ISP: ${data.org}`,
+      url: ipinfoUrl,
+      location: `${data.city}, ${data.country}`,
+      country: data.country,
+      city: data.city,
+      isp: data.org,
+      asn: data.asn,
+    };
+  } catch (e: any) {
+    return { name, category, status: "error" as const, details: `Error: ${e.message}`, url: ipinfoUrl };
+  }
+}
+
+// ============================================
+// VPN PROXY DETECTION
+// ============================================
+async function checkVpnDetection(value: string): Promise<ScanSourceResult> {
+  const name = "VPN Proxy Detection";
+  const category = "VPN Detection";
+  const url = `https://vpn-proxy-detection.ipify.org/`;
+
+  try {
+    const resp = await fetch(`https://vpn-proxy-detection.ipify.org/api/v1?ip=${value}`);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+
+    const data: any = await resp.json();
+    
+    logToConsole(name, { value }, data);
+
+    return {
+      name, category,
+      status: data.is_vpn ? "suspicious" : "clean",
+      detections: data.is_vpn ? 1 : 0,
+      details: `VPN Detected: ${data.is_vpn} | Proxy: ${data.is_proxy} | Tor: ${data.is_tor}`,
+      url: url,
+    };
+  } catch (e: any) {
+    return { name, category, status: "error" as const, details: `Error: ${e.message}`, url: url };
+  }
+}
+
+// ============================================
+// VPNAPI.IO
+// ============================================
+async function checkVpnApi(value: string, apiKey?: string): Promise<ScanSourceResult> {
+  const name = "VPNAPI.io";
+  const category = "VPN Detection";
+  const url = `https://vpnapi.io`;
+
+  if (!apiKey) {
+    return notConfigured(name, url, category);
+  }
+
+  try {
+    const resp = await fetch(`https://vpnapi.io/api/${value}?key=${apiKey}`);
+
+    if (resp.status === 429) return rateLimited(name, url, category);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+
+    const data: any = await resp.json();
+    const isVpn = data.security?.vpn || false;
+    
+    logToConsole(name, { value }, data);
+
+    return {
+      name, category,
+      status: isVpn ? "suspicious" : "clean",
+      detections: isVpn ? 1 : 0,
+      details: `VPN: ${isVpn} | Proxy: ${data.security?.proxy} | Tor: ${data.security?.tor}`,
+      url: url,
+      location: `${data.location?.city}, ${data.location?.country}`,
+      country: data.location?.country,
+      city: data.location?.city,
+    };
+  } catch (e: any) {
+    return { name, category, status: "error" as const, details: `Error: ${e.message}`, url: url };
+  }
+}
+
+// ============================================
+// IP2LOCATION
+// ============================================
+async function checkIp2Location(value: string, apiKey?: string): Promise<ScanSourceResult> {
+  const name = "IP2Location";
+  const category = "IP Geolocation";
+  const url = `https://www.ip2location.io/demo/${value}`;
+
+  if (!apiKey) {
+    return notConfigured(name, url, category);
+  }
+
+  try {
+    const resp = await fetch(`https://api.ip2location.io/?key=${apiKey}&ip=${value}`);
+
+    if (resp.status === 429) return rateLimited(name, url, category);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+
+    const data: any = await resp.json();
+    
+    logToConsole(name, { value }, data);
+
+    return {
+      name, category,
+      status: "clean",
+      details: `Location: ${data.city_name}, ${data.country_name} | ISP: ${data.isp} | ASN: ${data.asn}`,
+      url: url,
+      location: `${data.city_name}, ${data.country_name}`,
+      country: data.country_name,
+      city: data.city_name,
+      isp: data.isp,
+      asn: data.asn,
+    };
+  } catch (e: any) {
+    return { name, category, status: "error" as const, details: `Error: ${e.message}`, url: url };
+  }
+}
+
+// ============================================
+// IPGEOLOCATION.IO
+// ============================================
+async function checkIpGeolocation(value: string, apiKey?: string): Promise<ScanSourceResult> {
+  const name = "ipgeolocation.io";
+  const category = "IP Geolocation";
+  const url = `https://ipgeolocation.io`;
+
+  if (!apiKey) {
+    return notConfigured(name, url, category);
+  }
+
+  try {
+    const resp = await fetch(`https://api.ipgeolocation.io/ipgeo?apiKey=${apiKey}&ip=${value}`);
+
+    if (resp.status === 429) return rateLimited(name, url, category);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+
+    const data: any = await resp.json();
+    
+    logToConsole(name, { value }, data);
+
+    return {
+      name, category,
+      status: "clean",
+      details: `Location: ${data.city}, ${data.country_name} | ISP: ${data.isp} | ASN: ${data.asn}`,
+      url: url,
+      location: `${data.city}, ${data.country_name}`,
+      country: data.country_name,
+      city: data.city,
+      isp: data.isp,
+      asn: data.asn,
+    };
+  } catch (e: any) {
+    return { name, category, status: "error" as const, details: `Error: ${e.message}`, url: url };
+  }
+}
+
+// ============================================
+// IPSTACK
+// ============================================
+async function checkIpStack(value: string, apiKey?: string): Promise<ScanSourceResult> {
+  const name = "ipstack";
+  const category = "IP Geolocation";
+  const url = `https://ipstack.com`;
+
+  if (!apiKey) {
+    return notConfigured(name, url, category);
+  }
+
+  try {
+    const resp = await fetch(`http://api.ipstack.com/${value}?access_key=${apiKey}`);
+
+    if (resp.status === 429) return rateLimited(name, url, category);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+
+    const data: any = await resp.json();
+    
+    logToConsole(name, { value }, data);
+
+    return {
+      name, category,
+      status: "clean",
+      details: `Location: ${data.city}, ${data.country_name} | ISP: ${data.connection?.isp}`,
+      url: url,
+      location: `${data.city}, ${data.country_name}`,
+      country: data.country_name,
+      city: data.city,
+    };
+  } catch (e: any) {
+    return { name, category, status: "error" as const, details: `Error: ${e.message}`, url: url };
+  }
+}
+
+// ============================================
+// GEOLOCATION APIS (Free - No API Key)
+// ============================================
+async function checkIpApi(value: string): Promise<ScanSourceResult> {
+  const name = "IP-API";
+  const category = "IP Geolocation";
+  const url = `http://ip-api.com/json/${value}`;
+  
+  try {
+    const resp = await fetch(url);
+    const data: any = await resp.json();
+    
+    if (data.status === "success") {
+      return {
+        name, category,
+        status: "clean",
+        details: `Location: ${data.city}, ${data.country} | ISP: ${data.isp} | ASN: ${data.as}`,
+        url: `http://ip-api.com/#${value}`,
+        location: `${data.city}, ${data.country}`,
+        country: data.country,
+        city: data.city,
+        isp: data.isp,
+        asn: data.as,
+      };
+    }
+    return { name, category, status: "error", details: "Location not found", url: `http://ip-api.com/#${value}` };
+  } catch (e: any) {
+    return { name, category, status: "error", details: `Error: ${e.message}`, url: `http://ip-api.com/#${value}` };
+  }
+}
+
+async function checkIpWho(value: string): Promise<ScanSourceResult> {
+  const name = "IPWho";
+  const category = "IP Geolocation";
+  const url = `https://ipwho.is/${value}`;
+  
+  try {
+    const resp = await fetch(url);
+    const data: any = await resp.json();
+    
+    if (data && !data.error) {
+      return {
+        name, category,
+        status: "clean",
+        details: `Location: ${data.city}, ${data.country} | ISP: ${data.connection?.isp}`,
+        url: `https://ipwho.is/${value}`,
+        location: `${data.city}, ${data.country}`,
+        country: data.country,
+        city: data.city,
+      };
+    }
+    return { name, category, status: "error", details: "Location not found", url: `https://ipwho.is/${value}` };
+  } catch (e: any) {
+    return { name, category, status: "error", details: `Error: ${e.message}`, url: `https://ipwho.is/${value}` };
+  }
+}
+
+async function checkGeoJs(value: string): Promise<ScanSourceResult> {
+  const name = "GeoJS";
+  const category = "IP Geolocation";
+  const url = `https://get.geojs.io/v1/ip/geo/${value}.json`;
+  
+  try {
+    const resp = await fetch(url);
+    const data: any = await resp.json();
+    
+    return {
+      name, category,
+      status: "clean",
+      details: `Location: ${data.city}, ${data.country}`,
+      url: `https://get.geojs.io/`,
+      location: `${data.city}, ${data.country}`,
+      country: data.country,
+      city: data.city,
+    };
+  } catch (e: any) {
+    return { name, category, status: "error", details: `Error: ${e.message}`, url: `https://get.geojs.io/` };
+  }
+}
+
+async function checkIpapiCo(value: string): Promise<ScanSourceResult> {
+  const name = "ipapi.co";
+  const category = "IP Geolocation";
+  const url = `https://ipapi.co/${value}/json/`;
+  
+  try {
+    const resp = await fetch(url);
+    const data: any = await resp.json();
+    
+    if (data && !data.error) {
+      return {
+        name, category,
+        status: "clean",
+        details: `Location: ${data.city}, ${data.country_name} | ISP: ${data.org}`,
+        url: `https://ipapi.co/${value}`,
+        location: `${data.city}, ${data.country_name}`,
+        country: data.country_name,
+        city: data.city,
+      };
+    }
+    return { name, category, status: "error", details: "Location not found", url: `https://ipapi.co/${value}` };
+  } catch (e: any) {
+    return { name, category, status: "error", details: `Error: ${e.message}`, url: `https://ipapi.co/${value}` };
+  }
+}
+
+async function checkFreeIpApi(value: string): Promise<ScanSourceResult> {
+  const name = "FreeIPAPI";
+  const category = "IP Geolocation";
+  const url = `https://free.freeipapi.com/api/json/${value}`;
+  
+  try {
+    const resp = await fetch(url);
+    const data: any = await resp.json();
+    
+    return {
+      name, category,
+      status: "clean",
+      details: `Location: ${data.cityName}, ${data.countryName}`,
+      url: `https://free.freeipapi.com/`,
+      location: `${data.cityName}, ${data.countryName}`,
+      country: data.countryName,
+      city: data.cityName,
+    };
+  } catch (e: any) {
+    return { name, category, status: "error", details: `Error: ${e.message}`, url: `https://free.freeipapi.com/` };
+  }
+}
+
+// ============================================
+// ALL PLATFORMS - 18 TOTAL
+// ============================================
 const ALL_PLATFORMS: Array<{
   name: string;
   category: string;
@@ -218,74 +807,116 @@ const ALL_PLATFORMS: Array<{
   types: string[];
   hasApi: boolean;
 }> = [
-  // Core platforms with full API integration
+  // Core Security Platforms
   { name: "VirusTotal", category: "Multi-Engine Scanner", url: "https://www.virustotal.com/gui/search/", platformKey: "virustotal", types: ["ip", "domain", "url", "hash"], hasApi: true },
   { name: "AbuseIPDB", category: "IP Reputation", url: "https://www.abuseipdb.com/check/", platformKey: "abuseipdb", types: ["ip"], hasApi: true },
   { name: "AlienVault OTX", category: "Threat Intelligence", url: "https://otx.alienvault.com/browse/global/indicators", platformKey: "alienvault_otx", types: ["ip", "domain", "url", "hash"], hasApi: true },
-  { name: "ThreatFox", category: "IOC Database", url: "https://threatfox.abuse.ch/browse/", platformKey: "threatfox", types: ["ip", "domain", "url", "hash"], hasApi: true },  // ADD THIS
+  { name: "ThreatFox", category: "IOC Database", url: "https://threatfox.abuse.ch/browse/", platformKey: "threatfox", types: ["ip", "domain", "url", "hash"], hasApi: true },
+  { name: "GreyNoise", category: "Internet Noise Analysis", url: "https://viz.greynoise.io/ip/", platformKey: "greynoise", types: ["ip"], hasApi: true },
+  { name: "Shodan", category: "Asset Discovery", url: "https://www.shodan.io/host/", platformKey: "shodan", types: ["ip"], hasApi: true },
+  { name: "Censys", category: "Asset Discovery", url: "https://search.censys.io/hosts/", platformKey: "censys", types: ["ip"], hasApi: true },
+  { name: "IPinfo", category: "IP Geolocation", url: "https://ipinfo.io/", platformKey: "ipinfo", types: ["ip"], hasApi: true },
+  { name: "VPN Proxy Detection", category: "VPN Detection", url: "https://vpn-proxy-detection.ipify.org/", platformKey: "vpn_detection", types: ["ip"], hasApi: false },
+  { name: "VPNAPI.io", category: "VPN Detection", url: "https://vpnapi.io", platformKey: "vpnapi", types: ["ip"], hasApi: true },
   
-  // Additional platforms (no API integration yet)
-  { name: "Cisco Talos", category: "IP/Domain Reputation", url: "https://talosintelligence.com/", platformKey: "cisco_talos", types: ["ip", "domain", "url"], hasApi: false },
-  { name: "GreyNoise", category: "Internet Noise Analysis", url: "https://viz.greynoise.io", platformKey: "greynoise", types: ["ip"], hasApi: false },
-  { name: "Pulsedive", category: "Threat Intelligence", url: "https://pulsedive.com/", platformKey: "pulsedive", types: ["ip", "domain", "url", "hash"], hasApi: false },
-  { name: "IP Quality Score", category: "IP/URL Reputation", url: "https://www.ipqualityscore.com/", platformKey: "ipqualityscore", types: ["ip", "url", "domain"], hasApi: false },
-  { name: "ThreatMiner", category: "Threat Intelligence", url: "https://www.threatminer.org/", platformKey: "threatminer", types: ["ip", "domain", "hash"], hasApi: false },
-  { name: "InQuest Labs", category: "Deep File Inspection", url: "https://labs.inquest.net/", platformKey: "inquest_labs", types: ["hash", "url", "ip"], hasApi: false },
-  { name: "URLScan.io", category: "URL Scanner", url: "https://urlscan.io/", platformKey: "urlscan", types: ["url", "domain"], hasApi: false },
-  { name: "MalwareURL", category: "URL Blacklist", url: "https://www.malwareurl.com/", platformKey: "malwareurl", types: ["url", "domain", "ip"], hasApi: false },
-  { name: "URLHaus", category: "Malware URL Feed", url: "https://urlhaus.abuse.ch/browse/", platformKey: "urlhaus", types: ["url", "domain"], hasApi: false },
-  { name: "SecurityTrails", category: "DNS & WHOIS", url: "https://securitytrails.com/", platformKey: "securitytrails", types: ["domain", "url"], hasApi: false },
-  { name: "Hybrid Analysis", category: "Malware Sandbox", url: "https://www.hybrid-analysis.com/", platformKey: "hybrid_analysis", types: ["hash", "url"], hasApi: false },
-  { name: "Malware Bazaar", category: "Malware Sample DB", url: "https://bazaar.abuse.ch/browse/", platformKey: "malware_bazaar", types: ["hash"], hasApi: false },
-  { name: "Any.run", category: "Interactive Sandbox", url: "https://app.any.run/", platformKey: "any_run", types: ["hash", "url"], hasApi: false },
-  { name: "Intezer", category: "Malware Genome", url: "https://analyze.intezer.com/", platformKey: "intezer", types: ["hash"], hasApi: false },
-  { name: "IBM X-Force", category: "Threat Intelligence", url: "https://exchange.xforce.ibmcloud.com/", platformKey: "ibm_xforce", types: ["ip", "url", "hash", "domain"], hasApi: false },
+  // IP Geolocation APIs
+  { name: "IP-API", category: "IP Geolocation", url: "http://ip-api.com/json/", platformKey: "ipapi", types: ["ip"], hasApi: false },
+  { name: "IPWho", category: "IP Geolocation", url: "https://ipwho.is/", platformKey: "ipwho", types: ["ip"], hasApi: false },
+  { name: "GeoJS", category: "IP Geolocation", url: "https://get.geojs.io/v1/ip/geo/", platformKey: "geojs", types: ["ip"], hasApi: false },
+  { name: "ipapi.co", category: "IP Geolocation", url: "https://ipapi.co/", platformKey: "ipapi_co", types: ["ip"], hasApi: false },
+  { name: "FreeIPAPI", category: "IP Geolocation", url: "https://free.freeipapi.com/api/json/", platformKey: "freeipapi", types: ["ip"], hasApi: false },
+  { name: "IP2Location", category: "IP Geolocation", url: "https://www.ip2location.io/demo/", platformKey: "ip2location", types: ["ip"], hasApi: true },
+  { name: "ipgeolocation.io", category: "IP Geolocation", url: "https://ipgeolocation.io", platformKey: "ipgeolocation", types: ["ip"], hasApi: true },
+  { name: "ipstack", category: "IP Geolocation", url: "https://ipstack.com", platformKey: "ipstack", types: ["ip"], hasApi: true },
 ];
-// Main scan function with API keys from database
+
+// ============================================
+// MAIN SCAN FUNCTION
+// ============================================
 export async function runThreatScan(
   indicatorType: string,
   indicatorValue: string,
-  apiKeysMap: Record<string, string> = {}
+  apiKeysMap: Record<string, string>
 ): Promise<{ sources: ScanSourceResult[]; riskScore: number; riskLevel: "high" | "medium" | "low" | "unknown" }> {
 
-  // Filter platforms that support this indicator type
-  const relevantPlatforms = ALL_PLATFORMS.filter(p => p.types.includes(indicatorType));
+  console.log("\n" + "█".repeat(80));
+  console.log(`🚨 NEW THREAT SCAN INITIATED`);
+  console.log(`   Type: ${indicatorType}`);
+  console.log(`   Value: ${indicatorValue}`);
+  console.log(`   Time: ${new Date().toISOString()}`);
+  console.log(`   API Keys Configured: ${Object.keys(apiKeysMap).join(", ") || "None"}`);
+  console.log("█".repeat(80) + "\n");
 
-  // Build results for each platform
-  const resultsPromises: Promise<ScanSourceResult>[] = relevantPlatforms.map(async (platform): Promise<ScanSourceResult> => {
+  const relevantPlatforms = ALL_PLATFORMS.filter(p => p.types.includes(indicatorType));
+  console.log(`📋 Platforms to check (${relevantPlatforms.length}): ${relevantPlatforms.map(p => p.name).join(", ")}\n`);
+
+  const resultsPromises = relevantPlatforms.map(async (platform) => {
     const apiKey = apiKeysMap[platform.platformKey];
     
-    // Check if API key exists for this platform
-    if (!apiKey) {
+    if (!apiKey && platform.hasApi) {
       return notConfigured(platform.name, platform.url + indicatorValue, platform.category);
     }
 
-    // For platforms with full API integration
-    if (platform.hasApi) {
-      switch (platform.platformKey) {
-        case "threatfox":  
-      return checkThreatFox(indicatorValue, indicatorType, apiKey);
-        case "virustotal":
-          return checkVirusTotal(indicatorType, indicatorValue, apiKey);
-        case "abuseipdb":
-          if (indicatorType === "ip") {
-            return checkAbuseIPDB(indicatorValue, apiKey);
-          }
-          return notConfigured(platform.name, platform.url + indicatorValue, platform.category);
-        case "alienvault_otx":
-          return checkAlienVaultOTX(indicatorType, indicatorValue, apiKey);
-        default:
-          return configuredResult(platform.name, platform.category, platform.url + indicatorValue);
-      }
-    } else {
-      // For platforms without full API integration yet
-      return configuredResult(platform.name, platform.category, platform.url + indicatorValue);
+    switch (platform.platformKey) {
+      case "virustotal":
+        return checkVirusTotal(indicatorType, indicatorValue, apiKey);
+      case "abuseipdb":
+        if (indicatorType === "ip") return checkAbuseIPDB(indicatorValue, apiKey);
+        return notConfigured(platform.name, platform.url + indicatorValue, platform.category);
+      case "alienvault_otx":
+        return checkAlienVaultOTX(indicatorType, indicatorValue, apiKey);
+      case "threatfox":
+        return checkThreatFox(indicatorValue, indicatorType, apiKey);
+      case "greynoise":
+        return checkGreyNoise(indicatorValue, apiKey);
+      case "shodan":
+        return checkShodan(indicatorValue, apiKey);
+      case "censys":
+        return checkCensys(indicatorValue, apiKey);
+      case "ipinfo":
+        return checkIpInfo(indicatorValue, apiKey);
+      case "vpn_detection":
+        return checkVpnDetection(indicatorValue);
+      case "vpnapi":
+        return checkVpnApi(indicatorValue, apiKey);
+      case "ip2location":
+        return checkIp2Location(indicatorValue, apiKey);
+      case "ipgeolocation":
+        return checkIpGeolocation(indicatorValue, apiKey);
+      case "ipstack":
+        return checkIpStack(indicatorValue, apiKey);
+      case "ipapi":
+        return checkIpApi(indicatorValue);
+      case "ipwho":
+        return checkIpWho(indicatorValue);
+      case "geojs":
+        return checkGeoJs(indicatorValue);
+      case "ipapi_co":
+        return checkIpapiCo(indicatorValue);
+      case "freeipapi":
+        return checkFreeIpApi(indicatorValue);
+      default:
+        return configuredResult(platform.name, platform.category, platform.url + indicatorValue);
     }
   });
 
   const results = await Promise.all(resultsPromises);
 
-  // Risk scoring excludes error sources
+  console.log("\n" + "📊".repeat(40));
+  console.log("FINAL AGGREGATED RESULTS");
+  console.log("📊".repeat(40) + "\n");
+  
+  for (const result of results) {
+    console.log(`\n🔸 ${result.name} [${result.category || "No Category"}]`);
+    console.log(`   Status: ${result.status}`);
+    console.log(`   Details: ${result.details}`);
+    if (result.detections) console.log(`   Detections: ${result.detections}`);
+    if (result.url) console.log(`   URL: ${result.url}`);
+    if (result.location) console.log(`   Location: ${result.location}`);
+    if (result.isp) console.log(`   ISP: ${result.isp}`);
+    if (result.asn) console.log(`   ASN: ${result.asn}`);
+  }
+
   const scored = results.filter(s => ["malicious", "suspicious", "clean"].includes(s.status));
   const malCount = scored.filter(s => s.status === "malicious").length;
   const susCount = scored.filter(s => s.status === "suspicious").length;
@@ -297,14 +928,35 @@ export async function runThreatScan(
     riskScore = Math.min(100, Math.round((malCount * 100 + susCount * 40) / scoredTotal));
   }
 
-  const riskLevel: "high" | "medium" | "low" | "unknown" =
-    malCount > 0 || riskScore >= 70 ? "high"
+  const riskLevel = malCount > 0 || riskScore >= 70 ? "high"
     : susCount > 0 || riskScore >= 30 ? "medium"
     : cleanCount > 0 ? "low"
     : "unknown";
 
+  console.log("\n" + "🎯".repeat(40));
+  console.log("RISK CALCULATION SUMMARY");
+  console.log("🎯".repeat(40));
+  console.log(`   Malicious: ${malCount}`);
+  console.log(`   Suspicious: ${susCount}`);
+  console.log(`   Clean: ${cleanCount}`);
+  console.log(`   Total Scored: ${scoredTotal}`);
+  console.log(`   Risk Score: ${riskScore}/100`);
+  console.log(`   Risk Level: ${riskLevel.toUpperCase()}`);
+  console.log("=".repeat(80) + "\n");
+
+  const fullScanResult = {
+    timestamp: new Date().toISOString(),
+    indicator: { type: indicatorType, value: indicatorValue },
+    summary: { malCount, susCount, cleanCount, scoredTotal, riskScore, riskLevel },
+    sources: results
+  };
+  
+  appendToScanLog(indicatorType, indicatorValue, "COMPLETE_SCAN", fullScanResult);
+
   return { sources: results, riskScore, riskLevel };
 }
+
+
 
 
 
