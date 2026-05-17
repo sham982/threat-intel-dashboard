@@ -1,4 +1,4 @@
-import { Switch, Route, Router as WouterRouter } from "wouter";
+﻿import { Switch, Route, Router as WouterRouter } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -16,7 +16,6 @@ import Resources from "@/pages/resources";
 import Users from "@/pages/users";
 import Logs from "@/pages/logs";
 import Settings from "@/pages/settings";
-import Reports from "@/pages/reports";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -48,10 +47,7 @@ function Router() {
       <Route path="/resources">
         {() => <ProtectedRoute component={() => <Layout><Resources /></Layout>} />}
       </Route>
-      <Route path="/reports">
-        {() => <ProtectedRoute component={() => <Layout><Reports /></Layout>} />}
-      </Route>
-      <Route path="/settings">
+            <Route path="/settings">
         {() => <ProtectedRoute component={() => <Layout><Settings /></Layout>} />}
       </Route>
       <Route path="/admin/users">
@@ -88,3 +84,4 @@ function App() {
 }
 
 export default App;
+
