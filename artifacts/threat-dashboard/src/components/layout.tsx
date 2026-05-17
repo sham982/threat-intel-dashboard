@@ -51,8 +51,7 @@ export function Layout({ children }: LayoutProps) {
     { href: "/scans", label: "Scan History", icon: History },
     { href: "/alerts", label: "Active Alerts", icon: AlertTriangle },
     { href: "/resources", label: "SOC Resources", icon: BookOpen },
-    { href: "/reports", label: "Reports", icon: FileBarChart },
-  ];
+      ];
 
   const adminItems = [
     { href: "/admin/users", label: "User Management", icon: Users },
@@ -233,3 +232,4 @@ export function Layout({ children }: LayoutProps) {
     </div>
   );
 }
+

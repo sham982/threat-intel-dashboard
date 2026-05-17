@@ -7021,5 +7021,408 @@
         }
       ]
     }
+  },
+  {
+    "timestamp": "2026-05-17T13:56:03.071Z",
+    "indicatorType": "ip",
+    "indicatorValue": "12.21.2.2",
+    "platform": "VirusTotal",
+    "result": {
+      "status": "clean",
+      "mal": 0,
+      "sus": 0
+    }
+  },
+  {
+    "timestamp": "2026-05-17T13:56:12.466Z",
+    "indicatorType": "ip",
+    "indicatorValue": "12.21.2.2",
+    "platform": "COMPLETE_SCAN",
+    "result": {
+      "timestamp": "2026-05-17T13:56:12.463Z",
+      "indicator": {
+        "type": "ip",
+        "value": "12.21.2.2"
+      },
+      "summary": {
+        "malCount": 0,
+        "susCount": 0,
+        "cleanCount": 12,
+        "scoredTotal": 12,
+        "riskScore": 0,
+        "riskLevel": "low"
+      },
+      "sources": [
+        {
+          "name": "VirusTotal",
+          "category": "Multi-Engine Scanner",
+          "status": "clean",
+          "detections": 0,
+          "totalEngines": 92,
+          "details": "0 malicious, 0 suspicious out of 92 engines",
+          "url": "https://www.virustotal.com/gui/search/12.21.2.2"
+        },
+        {
+          "name": "AbuseIPDB",
+          "category": "IP Reputation",
+          "status": "clean",
+          "detections": 0,
+          "reports": 0,
+          "confidence": 0,
+          "details": "Abuse confidence: 0% | 0 total reports | ISP: AT&T Enterprises, LLC | Usage: Fixed Line ISP | Domain: att.com",
+          "url": "https://www.abuseipdb.com/check/12.21.2.2",
+          "isp": "AT&T Enterprises, LLC",
+          "country": "US",
+          "usageType": "Fixed Line ISP",
+          "domain": "att.com"
+        },
+        {
+          "name": "AlienVault OTX",
+          "category": "Threat Intelligence",
+          "status": "clean",
+          "detections": 0,
+          "reports": 0,
+          "details": "Found in 0 OTX threat pulses",
+          "url": "https://otx.alienvault.com/indicator/IPv4/12.21.2.2",
+          "pulseCount": 0,
+          "pulseDetails": [],
+          "relatedTags": []
+        },
+        {
+          "name": "ThreatFox",
+          "category": "IOC Database",
+          "status": "clean",
+          "details": "No results found in ThreatFox database.",
+          "url": "https://threatfox.abuse.ch/browse/"
+        },
+        {
+          "name": "GreyNoise",
+          "category": "Internet Noise Analysis",
+          "status": "error",
+          "details": "Error: HTTP 404",
+          "url": "https://viz.greynoise.io/ip/12.21.2.2"
+        },
+        {
+          "name": "Shodan",
+          "category": "Asset Discovery",
+          "status": "error",
+          "details": "Error: HTTP 403",
+          "url": "https://www.shodan.io/host/12.21.2.2"
+        },
+        {
+          "name": "Censys",
+          "category": "Asset Discovery",
+          "status": "error",
+          "details": "Error: HTTP 401",
+          "url": "https://search.censys.io/hosts/12.21.2.2"
+        },
+        {
+          "name": "IPinfo",
+          "category": "IP Geolocation",
+          "status": "clean",
+          "details": "Location: Dallas, US | ISP: AS7018 AT&T Enterprises, LLC",
+          "url": "https://ipinfo.io/12.21.2.2",
+          "location": "Dallas, US",
+          "country": "US",
+          "city": "Dallas",
+          "isp": "AS7018 AT&T Enterprises, LLC"
+        },
+        {
+          "name": "VPN Proxy Detection",
+          "category": "VPN Detection",
+          "status": "error",
+          "details": "Error: HTTP 403",
+          "url": "https://vpn-proxy-detection.ipify.org/"
+        },
+        {
+          "name": "VPNAPI.io",
+          "category": "VPN Detection",
+          "status": "clean",
+          "detections": 0,
+          "details": "VPN: false | Proxy: false | Tor: false",
+          "url": "https://vpnapi.io",
+          "location": "Little Rock, United States",
+          "country": "United States",
+          "city": "Little Rock"
+        },
+        {
+          "name": "IP-API",
+          "category": "IP Geolocation",
+          "status": "error",
+          "details": "Error: fetch failed",
+          "url": "http://ip-api.com/#12.21.2.2"
+        },
+        {
+          "name": "IPWho",
+          "category": "IP Geolocation",
+          "status": "clean",
+          "details": "Location: undefined, undefined | ISP: undefined",
+          "url": "https://ipwho.is/12.21.2.2",
+          "location": "undefined, undefined"
+        },
+        {
+          "name": "GeoJS",
+          "category": "IP Geolocation",
+          "status": "clean",
+          "details": "Location: Little Rock, United States",
+          "url": "https://get.geojs.io/",
+          "location": "Little Rock, United States",
+          "country": "United States",
+          "city": "Little Rock"
+        },
+        {
+          "name": "ipapi.co",
+          "category": "IP Geolocation",
+          "status": "error",
+          "details": "Location not found",
+          "url": "https://ipapi.co/12.21.2.2"
+        },
+        {
+          "name": "FreeIPAPI",
+          "category": "IP Geolocation",
+          "status": "clean",
+          "details": "Location: Little Rock, United States",
+          "url": "https://free.freeipapi.com/",
+          "location": "Little Rock, United States",
+          "country": "United States",
+          "city": "Little Rock"
+        },
+        {
+          "name": "IP2Location",
+          "category": "IP Geolocation",
+          "status": "clean",
+          "details": "Location: Little Rock, United States of America | ISP: undefined | ASN: 7018",
+          "url": "https://www.ip2location.io/demo/12.21.2.2",
+          "location": "Little Rock, United States of America",
+          "country": "United States of America",
+          "city": "Little Rock",
+          "asn": "7018"
+        },
+        {
+          "name": "ipgeolocation.io",
+          "category": "IP Geolocation",
+          "status": "clean",
+          "details": "Location: Dallas, United States | ISP: AT&T Enterprises, LLC | ASN: undefined",
+          "url": "https://ipgeolocation.io",
+          "location": "Dallas, United States",
+          "country": "United States",
+          "city": "Dallas",
+          "isp": "AT&T Enterprises, LLC"
+        },
+        {
+          "name": "ipstack",
+          "category": "IP Geolocation",
+          "status": "clean",
+          "details": "Location: North Little Rock, United States | ISP: At&T Enterprises LLC",
+          "url": "https://ipstack.com",
+          "location": "North Little Rock, United States",
+          "country": "United States",
+          "city": "North Little Rock"
+        }
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-05-17T14:01:48.897Z",
+    "indicatorType": "ip",
+    "indicatorValue": "12.21.1.1",
+    "platform": "VirusTotal",
+    "result": {
+      "status": "malicious",
+      "mal": 1,
+      "sus": 0
+    }
+  },
+  {
+    "timestamp": "2026-05-17T14:01:58.001Z",
+    "indicatorType": "ip",
+    "indicatorValue": "12.21.1.1",
+    "platform": "COMPLETE_SCAN",
+    "result": {
+      "timestamp": "2026-05-17T14:01:57.997Z",
+      "indicator": {
+        "type": "ip",
+        "value": "12.21.1.1"
+      },
+      "summary": {
+        "malCount": 1,
+        "susCount": 0,
+        "cleanCount": 11,
+        "scoredTotal": 12,
+        "riskScore": 8,
+        "riskLevel": "high"
+      },
+      "sources": [
+        {
+          "name": "VirusTotal",
+          "category": "Multi-Engine Scanner",
+          "status": "malicious",
+          "detections": 1,
+          "totalEngines": 92,
+          "details": "1 malicious, 0 suspicious out of 92 engines",
+          "url": "https://www.virustotal.com/gui/search/12.21.1.1",
+          "maliciousEngines": [
+            "alphaMountain.ai"
+          ]
+        },
+        {
+          "name": "AbuseIPDB",
+          "category": "IP Reputation",
+          "status": "clean",
+          "detections": 0,
+          "reports": 0,
+          "confidence": 0,
+          "details": "Abuse confidence: 0% | 0 total reports | ISP: AT&T Enterprises, LLC | Usage: Mobile ISP | Domain: att.com",
+          "url": "https://www.abuseipdb.com/check/12.21.1.1",
+          "isp": "AT&T Enterprises, LLC",
+          "country": "US",
+          "usageType": "Mobile ISP",
+          "domain": "att.com"
+        },
+        {
+          "name": "AlienVault OTX",
+          "category": "Threat Intelligence",
+          "status": "clean",
+          "detections": 0,
+          "reports": 0,
+          "details": "Found in 0 OTX threat pulses",
+          "url": "https://otx.alienvault.com/indicator/IPv4/12.21.1.1",
+          "pulseCount": 0,
+          "pulseDetails": [],
+          "relatedTags": []
+        },
+        {
+          "name": "ThreatFox",
+          "category": "IOC Database",
+          "status": "clean",
+          "details": "No results found in ThreatFox database.",
+          "url": "https://threatfox.abuse.ch/browse/"
+        },
+        {
+          "name": "GreyNoise",
+          "category": "Internet Noise Analysis",
+          "status": "error",
+          "details": "Error: HTTP 404",
+          "url": "https://viz.greynoise.io/ip/12.21.1.1"
+        },
+        {
+          "name": "Shodan",
+          "category": "Asset Discovery",
+          "status": "error",
+          "details": "Error: HTTP 403",
+          "url": "https://www.shodan.io/host/12.21.1.1"
+        },
+        {
+          "name": "Censys",
+          "category": "Asset Discovery",
+          "status": "error",
+          "details": "Error: HTTP 401",
+          "url": "https://search.censys.io/hosts/12.21.1.1"
+        },
+        {
+          "name": "IPinfo",
+          "category": "IP Geolocation",
+          "status": "clean",
+          "details": "Location: Lonoke, US | ISP: AS7018 AT&T Enterprises, LLC",
+          "url": "https://ipinfo.io/12.21.1.1",
+          "location": "Lonoke, US",
+          "country": "US",
+          "city": "Lonoke",
+          "isp": "AS7018 AT&T Enterprises, LLC"
+        },
+        {
+          "name": "VPN Proxy Detection",
+          "category": "VPN Detection",
+          "status": "error",
+          "details": "Error: HTTP 403",
+          "url": "https://vpn-proxy-detection.ipify.org/"
+        },
+        {
+          "name": "VPNAPI.io",
+          "category": "VPN Detection",
+          "status": "clean",
+          "detections": 0,
+          "details": "VPN: false | Proxy: false | Tor: false",
+          "url": "https://vpnapi.io",
+          "location": "Little Rock, United States",
+          "country": "United States",
+          "city": "Little Rock"
+        },
+        {
+          "name": "IP-API",
+          "category": "IP Geolocation",
+          "status": "error",
+          "details": "Error: fetch failed",
+          "url": "http://ip-api.com/#12.21.1.1"
+        },
+        {
+          "name": "IPWho",
+          "category": "IP Geolocation",
+          "status": "clean",
+          "details": "Location: undefined, undefined | ISP: undefined",
+          "url": "https://ipwho.is/12.21.1.1",
+          "location": "undefined, undefined"
+        },
+        {
+          "name": "GeoJS",
+          "category": "IP Geolocation",
+          "status": "clean",
+          "details": "Location: Little Rock, United States",
+          "url": "https://get.geojs.io/",
+          "location": "Little Rock, United States",
+          "country": "United States",
+          "city": "Little Rock"
+        },
+        {
+          "name": "ipapi.co",
+          "category": "IP Geolocation",
+          "status": "error",
+          "details": "Location not found",
+          "url": "https://ipapi.co/12.21.1.1"
+        },
+        {
+          "name": "FreeIPAPI",
+          "category": "IP Geolocation",
+          "status": "clean",
+          "details": "Location: New York, United States",
+          "url": "https://free.freeipapi.com/",
+          "location": "New York, United States",
+          "country": "United States",
+          "city": "New York"
+        },
+        {
+          "name": "IP2Location",
+          "category": "IP Geolocation",
+          "status": "clean",
+          "details": "Location: New York City, United States of America | ISP: undefined | ASN: 7018",
+          "url": "https://www.ip2location.io/demo/12.21.1.1",
+          "location": "New York City, United States of America",
+          "country": "United States of America",
+          "city": "New York City",
+          "asn": "7018"
+        },
+        {
+          "name": "ipgeolocation.io",
+          "category": "IP Geolocation",
+          "status": "clean",
+          "details": "Location: Dallas, United States | ISP: AT&T Enterprises, LLC | ASN: undefined",
+          "url": "https://ipgeolocation.io",
+          "location": "Dallas, United States",
+          "country": "United States",
+          "city": "Dallas",
+          "isp": "AT&T Enterprises, LLC"
+        },
+        {
+          "name": "ipstack",
+          "category": "IP Geolocation",
+          "status": "clean",
+          "details": "Location: Lonoke, United States | ISP: At&T Enterprises LLC",
+          "url": "https://ipstack.com",
+          "location": "Lonoke, United States",
+          "country": "United States",
+          "city": "Lonoke"
+        }
+      ]
+    }
   }
 ]

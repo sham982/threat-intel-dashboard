@@ -1,4 +1,4 @@
-﻿import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -392,7 +392,7 @@ function SourceRow({ source }: { source: SourceResult }) {
                   {(source.hostname || source.domain) && (
                     <div className="mb-3 p-3 bg-white/50 dark:bg-black/20 rounded-lg border border-orange-100 dark:border-orange-800/50">
                       <div className="flex items-center gap-2 mb-2">
-                        <Globe className="w-3.5 h-3显示 text-blue-500" />
+                        <Globe className="w-3.5 h-3?? text-blue-500" />
                         <span className="text-[10px] font-mono font-bold text-orange-600 dark:text-orange-400 uppercase tracking-wider">Network Details</span>
                       </div>
                       {source.hostname && <div className="text-xs mb-1"><span className="text-muted-foreground">Hostname:</span> <span className="font-mono">{source.hostname}</span></div>}
@@ -462,7 +462,7 @@ function SourceRow({ source }: { source: SourceResult }) {
                     <div className="space-y-2">
                       <details className="group">
                         <summary className="cursor-pointer text-[10px] font-mono font-bold uppercase tracking-wider text-purple-600 dark:text-purple-400">
-                          📡 Recent Pulses ({source.pulseDetails.length} of {source.detections})
+                          ?? Recent Pulses ({source.pulseDetails.length} of {source.detections})
                         </summary>
                         <div className="mt-3 space-y-2 max-h-64 overflow-y-auto">
                           {source.pulseDetails.map((pulse: any, idx: number) => (
@@ -517,19 +517,19 @@ export default function Lookup() {
   const createScan = useCreateScan({ 
     mutation: { 
       onSuccess: (data) => {
-        console.log("✅ SCAN COMPLETE - Full Response from Backend:");
-        console.log("📊 RISK INFO:", {
+        console.log("? SCAN COMPLETE - Full Response from Backend:");
+        console.log("?? RISK INFO:", {
           riskScore: data.riskScore,
           riskLevel: data.riskLevel,
           indicatorValue: data.indicatorValue,
           indicatorType: data.indicatorType
         });
-        console.log("🔍 ALL PLATFORM RESULTS (JSON):");
+        console.log("?? ALL PLATFORM RESULTS (JSON):");
         console.log(JSON.stringify(data.sources, null, 2));
         setScanResult(data);
       },
       onError: (error) => {
-        console.error("❌ Scan failed:", error);
+        console.error("? Scan failed:", error);
       }
     } 
   });
@@ -537,7 +537,7 @@ export default function Lookup() {
   const handleLookup = (e: React.FormEvent) => {
     e.preventDefault();
     if (!indicatorValue.trim()) return;
-    console.log(`🔍 Starting threat lookup for: ${indicatorValue} (${indicatorType})`);
+    console.log(`?? Starting threat lookup for: ${indicatorValue} (${indicatorType})`);
     setScanResult(null);
     setAiAnalysis(null);
     createScan.mutate({ data: { indicatorType, indicatorValue: indicatorValue.trim() } });
@@ -560,14 +560,14 @@ export default function Lookup() {
   }, {});
 
   const getAiAnalysis = useCallback(async (scanResultData: Scan, sourcesList: SourceResult[]) => {
-    console.log("🔍 AI Analysis started for:", scanResultData.indicatorValue);
+    console.log("?? AI Analysis started for:", scanResultData.indicatorValue);
     setIsAiAnalyzing(true);
     try {
       const malCount = sourcesList.filter(s => s.status === "malicious").length;
       const suspCount = sourcesList.filter(s => s.status === "suspicious").length;
       const clnCount = sourcesList.filter(s => s.status === "clean").length;
       
-      const response = await fetch("/api/analyze-scan", {
+      const response = await fetch("http://localhost:3001/api/analyze-scan", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -608,7 +608,7 @@ export default function Lookup() {
           <div className="w-1 h-8 bg-gradient-to-b from-[#8bc74c] to-[#1bb7b6] rounded-full" />
           <h1 className="text-2xl font-bold tracking-tight bg-gradient-to-r from-[#8bc74c] to-[#1bb7b6] bg-clip-text text-transparent">Threat Intelligence Lookup</h1>
         </div>
-        <p className="text-sm text-muted-foreground font-mono tracking-widest ml-3">MULTI-SOURCE THREAT ANALYSIS — REAL-TIME INTELLIGENCE</p>
+        <p className="text-sm text-muted-foreground font-mono tracking-widest ml-3">MULTI-SOURCE THREAT ANALYSIS � REAL-TIME INTELLIGENCE</p>
       </div>
 
       {/* Search form */}
@@ -702,9 +702,9 @@ export default function Lookup() {
                     </div>
                   ) : <div className="h-3 rounded-full bg-muted/30" />}
                   <div className="flex gap-4 mt-2">
-                    <span className="text-[10px] font-mono text-red-500">● {maliciousCount} malicious</span>
-                    <span className="text-[10px] font-mono text-yellow-500">● {suspiciousCount} suspicious</span>
-                    <span className="text-[10px] font-mono text-[#8bc74c]">● {cleanCount} clean</span>
+                    <span className="text-[10px] font-mono text-red-500">? {maliciousCount} malicious</span>
+                    <span className="text-[10px] font-mono text-yellow-500">? {suspiciousCount} suspicious</span>
+                    <span className="text-[10px] font-mono text-[#8bc74c]">? {cleanCount} clean</span>
                   </div>
                 </CardContent>
               </Card>

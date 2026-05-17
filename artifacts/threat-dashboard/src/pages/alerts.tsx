@@ -1,4 +1,4 @@
-﻿import { useState, useCallback, useEffect } from "react";
+﻿import { useState, useEffect } from "react";
 import { useAuth } from "@/lib/auth";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -28,25 +28,27 @@ import autoTable from "jspdf-autotable";
 type BlocklistEntry = {
   id: number;
   type: string;
-  sourceIp: string | null;
-  destinationIp: string | null;
-  deviceReported: string | null;
-  assignedTo: string | null;
+  value: string;
+  source_ip: string | null;
+  destination_ip: string | null;
+  device_reported: string | null;
+  assigned_to: string | null;
   action: string;
   reason: string | null;
-  blockedByUsername: string;
-  blockedAt: string;
+  notes: string | null;
+  blocked_by_username: string;
+  blocked_at: string;
+  status: string;
 };
 
 const DEVICES = ["FortiSIEM", "FortiMAIL", "Checkpoint", "Kaspersky", "Other"];
 const TEAMS = ["Infrastructure Team", "Security Team", "Other"];
-const ACTIONS = ["blocked", "open", "other"];
 
 type DateRange = "all" | "today" | "week" | "month" | "year";
 
 // IP validation function
 const isValidIp = (ip: string): boolean => {
-  if (!ip) return true; // Empty is allowed
+  if (!ip) return true;
   const ipv4Pattern = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
   return ipv4Pattern.test(ip);
 };
@@ -69,7 +71,6 @@ function AddEntryDialog({ onAdded }: { onAdded: () => void }) {
   });
 
   const validateForm = (): boolean => {
-    // Validate IP format if provided
     if (form.sourceIp && !isValidIp(form.sourceIp)) {
       toast({ title: "Validation Error", description: "Source IP is not in valid format", variant: "destructive" });
       return false;
@@ -245,14 +246,14 @@ function exportToCSV(entries: BlocklistEntry[], dateRangeLabel: string) {
   const headers = ["Type", "Source IP", "Destination IP", "Device Reported", "Assigned To", "Action", "Reason", "Reported By", "Blocked At"];
   const rows = entries.map(e => [
     e.type.toUpperCase(),
-    e.sourceIp || "",
-    e.destinationIp || "",
-    e.deviceReported || "",
-    e.assignedTo || "",
+    e.source_ip || "",
+    e.destination_ip || "",
+    e.device_reported || "",
+    e.assigned_to || "",
     e.action,
     e.reason || "",
-    e.blockedByUsername,
-    format(new Date(e.blockedAt), "yyyy-MM-dd HH:mm:ss"),
+    e.blocked_by_username,
+    format(new Date(e.blocked_at), "yyyy-MM-dd HH:mm:ss"),
   ]);
   const csv = [
     "=".repeat(80),
@@ -272,14 +273,14 @@ function exportToCSV(entries: BlocklistEntry[], dateRangeLabel: string) {
 async function exportToExcel(entries: BlocklistEntry[], dateRangeLabel: string) {
   const ws = XLSX.utils.json_to_sheet(entries.map(e => ({
     "Type": e.type.toUpperCase(),
-    "Source IP": e.sourceIp || "",
-    "Destination IP": e.destinationIp || "",
-    "Device Reported": e.deviceReported || "",
-    "Assigned To": e.assignedTo || "",
+    "Source IP": e.source_ip || "",
+    "Destination IP": e.destination_ip || "",
+    "Device Reported": e.device_reported || "",
+    "Assigned To": e.assigned_to || "",
     "Action": e.action,
     "Reason": e.reason || "",
-    "Reported By": e.blockedByUsername,
-    "Blocked At": format(new Date(e.blockedAt), "yyyy-MM-dd HH:mm:ss"),
+    "Reported By": e.blocked_by_username,
+    "Blocked At": format(new Date(e.blocked_at), "yyyy-MM-dd HH:mm:ss"),
   })));
   ws["!cols"] = [{ wch: 10 }, { wch: 18 }, { wch: 18 }, { wch: 18 }, { wch: 18 }, { wch: 12 }, { wch: 30 }, { wch: 15 }, { wch: 20 }];
   const wb = XLSX.utils.book_new();
@@ -305,10 +306,10 @@ async function exportToPDF(entries: BlocklistEntry[], dateRangeLabel: string) {
     head: [["Type", "Source IP", "Dest IP", "Device", "Assigned To", "Action", "Reason"]],
     body: entries.slice(0, 500).map(e => [
       e.type.toUpperCase(),
-      e.sourceIp || "-",
-      e.destinationIp || "-",
-      e.deviceReported || "-",
-      e.assignedTo || "-",
+      e.source_ip || "-",
+      e.destination_ip || "-",
+      e.device_reported || "-",
+      e.assigned_to || "-",
       e.action.toUpperCase(),
       e.reason || "-",
     ]),
@@ -383,35 +384,30 @@ export default function Alerts() {
   // Apply filters
   let filteredEntries = [...entries];
   
-  // Date filter
   const dateFilter = getDateRange(dateRange);
   if (dateFilter) {
     filteredEntries = filteredEntries.filter(e => {
-      const blockDate = new Date(e.blockedAt);
+      const blockDate = new Date(e.blocked_at);
       return blockDate >= dateFilter.start && blockDate <= dateFilter.end;
     });
   }
   
-  // Search filter
   if (search) {
     filteredEntries = filteredEntries.filter(e =>
-      (e.sourceIp && e.sourceIp.toLowerCase().includes(search.toLowerCase())) ||
-      (e.destinationIp && e.destinationIp.toLowerCase().includes(search.toLowerCase())) ||
+      (e.source_ip && e.source_ip.toLowerCase().includes(search.toLowerCase())) ||
+      (e.destination_ip && e.destination_ip.toLowerCase().includes(search.toLowerCase())) ||
       (e.reason && e.reason.toLowerCase().includes(search.toLowerCase()))
     );
   }
   
-  // Type filter
   if (typeFilter !== "all") {
     filteredEntries = filteredEntries.filter(e => e.type === typeFilter);
   }
 
-  // Pagination calculations
   const totalPages = Math.ceil(filteredEntries.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const paginatedEntries = filteredEntries.slice(startIndex, startIndex + itemsPerPage);
 
-  // Reset to first page when filters change
   useEffect(() => {
     setCurrentPage(1);
   }, [search, typeFilter, dateRange]);
@@ -425,7 +421,6 @@ export default function Alerts() {
   
   const isAdminOrAnalyst = user?.role === "admin" || user?.role === "analyst";
 
-  // Generate page numbers
   const getPageNumbers = () => {
     const pages = [];
     const maxVisible = 5;
@@ -445,7 +440,6 @@ export default function Alerts() {
 
   return (
     <div className="space-y-5 flex flex-col h-full">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex flex-col gap-1">
           <div className="flex items-center gap-2">
@@ -460,7 +454,6 @@ export default function Alerts() {
         <AddEntryDialog onAdded={fetchEntries} />
       </div>
 
-      {/* Stats Cards */}
       <div className="grid grid-cols-4 gap-3">
         <Card className="bg-gradient-to-r from-[#8bc74c]/10 to-[#8bc74c]/5 border-[#8bc74c]/30">
           <CardContent className="p-3 text-center"><p className="text-2xl font-bold text-[#8bc74c]">{counts.total}</p><p className="text-[10px] font-mono">Total Entries</p></CardContent>
@@ -476,7 +469,6 @@ export default function Alerts() {
         </Card>
       </div>
 
-      {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-3 flex-wrap">
         <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -525,7 +517,6 @@ export default function Alerts() {
         </DropdownMenu>
       </div>
 
-      {/* Table */}
       <Card className="bg-card/50 backdrop-blur-sm border-border/50 flex-1 flex flex-col min-h-0">
         <div className="flex-1 overflow-auto rounded-md">
           <table className="w-full text-sm">
@@ -552,14 +543,14 @@ export default function Alerts() {
                 paginatedEntries.map((entry) => (
                   <tr key={entry.id} className="border-b border-border/50 hover:bg-muted/20">
                     <td className="p-3 font-mono text-xs"><Badge variant="outline" className="text-[10px]">{entry.type.toUpperCase()}</Badge></td>
-                    <td className="p-3 font-mono text-sm font-semibold">{entry.sourceIp || "-"}</td>
-                    <td className="p-3 font-mono text-sm">{entry.destinationIp || "-"}</td>
-                    <td className="p-3 text-xs">{entry.deviceReported || "-"}</td>
-                    <td className="p-3 text-xs">{entry.assignedTo || "-"}</td>
+                    <td className="p-3 font-mono text-sm font-semibold">{entry.source_ip || "-"}</td>
+                    <td className="p-3 font-mono text-sm">{entry.destination_ip || "-"}</td>
+                    <td className="p-3 text-xs">{entry.device_reported || "-"}</td>
+                    <td className="p-3 text-xs">{entry.assigned_to || "-"}</td>
                     <td className="p-3"><Badge className={entry.action === "blocked" ? "bg-red-500/20 text-red-500" : entry.action === "open" ? "bg-yellow-500/20 text-yellow-500" : "bg-gray-500/20 text-gray-500"}>{entry.action.toUpperCase()}</Badge></td>
                     <td className="p-3 text-xs">{entry.reason || "-"}</td>
-                    <td className="p-3 text-xs">{entry.blockedByUsername}</td>
-                    <td className="p-3 text-xs">{format(new Date(entry.blockedAt), "MMM dd, HH:mm")}</td>
+                    <td className="p-3 text-xs">{entry.blocked_by_username}</td>
+                    <td className="p-3 text-xs">{entry.blocked_at ? format(new Date(entry.blocked_at), "MMM dd, HH:mm") : "-"}</td>
                     {isAdminOrAnalyst && (
                       <td className="p-3 text-right">
                         <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10" onClick={() => handleDelete(entry.id)}>
@@ -574,7 +565,6 @@ export default function Alerts() {
           </table>
         </div>
         
-        {/* Pagination */}
         {totalPages > 1 && (
           <div className="flex items-center justify-between px-4 py-3 border-t border-border/50">
             <div className="text-xs text-muted-foreground">
@@ -599,3 +589,4 @@ export default function Alerts() {
     </div>
   );
 }
+
